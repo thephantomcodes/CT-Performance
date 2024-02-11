@@ -1,0 +1,3 @@
+/home/dstring/code/Projection/CMakeFiles/rebuild_cache.dir
+/home/dstring/code/Projection/CMakeFiles/edit_cache.dir
+/home/dstring/code/Projection/CMakeFiles/paramtest.dir
