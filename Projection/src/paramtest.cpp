@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <vector>
@@ -20,7 +21,8 @@ void projectInterval(double src[2], double pt1[2], double pt2[2], double y, doub
 {
   interval[0] = projectPoint(src, pt1, y);
   interval[1] = projectPoint(src, pt2, y);
-  std::swap(interval[0], interval[1]);
+  if(interval[0] > interval[1])
+  	std::swap(interval[0], interval[1]);
 }
 
 bool intervalsIntersect(double interval1[2], double interval2[2])
@@ -43,6 +45,14 @@ int main(int argc, const char* argv[])
   double px_width = 2.0*params.phantom_radius/params.num_pixels;
   printPoint(src, "src ", "\n\n");
   
+  // Declare system matrix A. 
+  // Dim = number of pixels X detectors * views.
+  int P = params.num_pixels*params.num_pixels;
+  int D = params.num_detectors*params.num_views;
+  std::vector<std::vector<double>> A(D);
+  for(auto row : A) row.resize(P);
+  
+  for(int v=0; v<1; v++)
   for(int d=0; d<params.num_detectors; d++)
   {
     double det1[] = {-params.scanning_radius, det_begin - d*det_len};
@@ -84,6 +94,7 @@ int main(int argc, const char* argv[])
     		else
     		{
     			printPoint(px_proj_interval, "px proj interval: ", " out\n");
+    			std::cout << "weight: " << 0 << "\n";
     		}
     		
       }
