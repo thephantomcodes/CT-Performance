@@ -4,10 +4,10 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/dstring/code/Projection/src/Image.cpp" "/home/dstring/code/Projection/CMakeFiles/paramtest.dir/src/Image.cpp.o"
-  "/home/dstring/code/Projection/src/ProjectionParameters.cpp" "/home/dstring/code/Projection/CMakeFiles/paramtest.dir/src/ProjectionParameters.cpp.o"
-  "/home/dstring/code/Projection/src/Scanner.cpp" "/home/dstring/code/Projection/CMakeFiles/paramtest.dir/src/Scanner.cpp.o"
-  "/home/dstring/code/Projection/src/paramtest.cpp" "/home/dstring/code/Projection/CMakeFiles/paramtest.dir/src/paramtest.cpp.o"
+  "/home/dstring/code/CT-Performance/CT-Performance/Projection/src/Image.cpp" "/home/dstring/code/CT-Performance/CT-Performance/Projection/CMakeFiles/paramtest.dir/src/Image.cpp.o"
+  "/home/dstring/code/CT-Performance/CT-Performance/Projection/src/ProjectionParameters.cpp" "/home/dstring/code/CT-Performance/CT-Performance/Projection/CMakeFiles/paramtest.dir/src/ProjectionParameters.cpp.o"
+  "/home/dstring/code/CT-Performance/CT-Performance/Projection/src/Scanner.cpp" "/home/dstring/code/CT-Performance/CT-Performance/Projection/CMakeFiles/paramtest.dir/src/Scanner.cpp.o"
+  "/home/dstring/code/CT-Performance/CT-Performance/Projection/src/paramtest.cpp" "/home/dstring/code/CT-Performance/CT-Performance/Projection/CMakeFiles/paramtest.dir/src/paramtest.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
 

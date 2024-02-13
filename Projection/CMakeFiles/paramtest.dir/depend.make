@@ -13,7 +13,5 @@ CMakeFiles/paramtest.dir/src/Scanner.cpp.o: include/ProjectionParameters.h
 CMakeFiles/paramtest.dir/src/Scanner.cpp.o: include/Scanner.h
 
 CMakeFiles/paramtest.dir/src/paramtest.cpp.o: src/paramtest.cpp
-CMakeFiles/paramtest.dir/src/paramtest.cpp.o: include/Image.h
 CMakeFiles/paramtest.dir/src/paramtest.cpp.o: include/ProjectionParameters.h
-CMakeFiles/paramtest.dir/src/paramtest.cpp.o: include/Scanner.h
 

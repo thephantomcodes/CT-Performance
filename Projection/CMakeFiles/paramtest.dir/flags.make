@@ -6,5 +6,5 @@ CXX_FLAGS =   -std=gnu++1z
 
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/dstring/code/Projection/src -I/home/dstring/code/Projection/include 
+CXX_INCLUDES = -I/home/dstring/code/CT-Performance/CT-Performance/Projection/src -I/home/dstring/code/CT-Performance/CT-Performance/Projection/include 
 

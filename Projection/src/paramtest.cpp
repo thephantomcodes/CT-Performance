@@ -1,22 +1,31 @@
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <vector>
-#include <cmath>
 #include "ProjectionParameters.h"
-#include "Image.h"
-#include "Scanner.h"
 
 void printPoint(double point[], std::string prefix="", std::string suffix="")
 {
   std::cout << prefix << "(" << point[0] << "," << point[1] << ")" << suffix;
 }
 
-void projectPoint(double src[2], double det[2], double col, double point[2])
+double projectPoint(double src[2], double pt[2], double y)
 {
-  double m = (src[1] - det[1]) / (src[0] - det[0]);
-  double b = det[1] - m*det[0];
-  std::cout << "y = "<< m << "x + " << b << "\n";
-  point[0] = col;
-  point[1] = m*point[0] + b;
+  double m = (src[1] - pt[1]) / (src[0] - pt[0]);
+  double b = pt[1] - m*pt[0];
+  return m*y + b;
+}
+
+void projectInterval(double src[2], double pt1[2], double pt2[2], double y, double interval[2])
+{
+  interval[0] = projectPoint(src, pt1, y);
+  interval[1] = projectPoint(src, pt2, y);
+  std::swap(interval[0], interval[1]);
+}
+
+bool intervalsIntersect(double interval1[2], double interval2[2])
+{
+	return interval1[0] < interval2[1] && interval2[0] < interval1[1];
 }
 
 int main(int argc, const char* argv[])
@@ -35,35 +44,52 @@ int main(int argc, const char* argv[])
   printPoint(src, "src ", "\n\n");
   
   for(int d=0; d<params.num_detectors; d++)
-  //for(int d=0; d<1; d++)
   {
     double det1[] = {-params.scanning_radius, det_begin - d*det_len};
     double det2[] = {-params.scanning_radius, det_begin - (d+1)*det_len};
-    std::cout << d << "\n";
+    std::cout << "det: " << d << "\n";
     printPoint(det1, "d1: ", "\n");
-    printPoint(det2, "d1: ", "\n");
+    printPoint(det2, "d2: ", "\n");
+    
+    double det_proj_interval[2];
+    projectInterval(src, det1, det2, 0, det_proj_interval);
+    printPoint(det_proj_interval, "det proj interval: ", "\n\n");
     
     for(int c=0; c<params.num_pixels; c++)
-//    for(int c=0; c<2; c++)
     {
-      double col_x = col_begin - (c+0.5)*px_width;
-      double point1[2];
-      double point2[2];
-      projectPoint(src, det1, col_x, point1);
-      projectPoint(src, det2, col_x, point2);
-      std::cout << "col " << c << ": " << col_x << "\n";
-      printPoint(point1, "p1: ", "\n");
-      printPoint(point2, "p2: ", "\n");
-      double cos_correction1 = src[0]/std::sqrt((point1[1] - src[1])*(point1[1] - src[1]) + src[0]*src[0]);
-      double cos_correction2 = src[0]/std::sqrt((point2[1] - src[1])*(point2[1] - src[1]) + src[0]*src[0]);
-//      double corrected_y = point1[1]/std::abs(0.5*(cos_correction1 + cos_correction2));
-      double px_loc = (col_begin - point1[1])/px_width;
-      std::cout << "px " << px_loc << "\n";
+      double px_x = col_begin - (c+0.5)*px_width; 
+      std::cout << "col " << c << ": " << px_x << "\n";
+      
+      double cos_correction1 = src[0]/std::sqrt((det_proj_interval[0] - src[1])*(det_proj_interval[0] - src[1]) + src[0]*src[0]);
+      double cos_correction2 = src[0]/std::sqrt((det_proj_interval[1] - src[1])*(det_proj_interval[1] - src[1]) + src[0]*src[0]);
+      double cos_correction = std::abs(0.5*(cos_correction1 + cos_correction2));
+      std::cout << "cos " << cos_correction1 << " " << cos_correction2 << " " << cos_correction << "\n";
+//      double px_loc = (col_begin - detp1[1])/px_width;
 //      std::cout << "px w " << px_width << "\n";
+
+      for(int r=0; r<params.num_pixels; r++)
+      {
+        double px1[] = {px_x, col_begin - (r)*px_width};
+        double px2[] = {px_x, col_begin - (r+1)*px_width};
+		    double px_proj_interval[2];
+				projectInterval(src, px1, px2, 0, px_proj_interval);
+				
+				if(intervalsIntersect(px_proj_interval, det_proj_interval))
+				{
+					double det_width = det_proj_interval[1] - det_proj_interval[0];
+					double det_px_overlap = std::min(det_proj_interval[1], px_proj_interval[1]) - std::max(det_proj_interval[0], px_proj_interval[0]); 
+    			printPoint(px_proj_interval, "px proj interval: ", " in\n");
+    			std::cout << "weight: " << det_px_overlap / (det_width * cos_correction) << "\n";
+    		}
+    		else
+    		{
+    			printPoint(px_proj_interval, "px proj interval: ", " out\n");
+    		}
+    		
+      }
       std::cout << "\n";
     }
   }
-  
 	
   return 0;
 }
