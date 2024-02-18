@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <iomanip>
 #include <iostream>
 #include <vector>
 #include "ProjectionParameters.h"
@@ -10,24 +11,25 @@ void printPoint(double point[], std::string prefix="", std::string suffix="")
   std::cout << prefix << "(" << point[0] << "," << point[1] << ")" << suffix;
 }
 
-double projectPoint(double src[2], double pt[2], double y)
+double projectPoint(double src[2], double pt[2], double x)
 {
+  if(src[0] == pt[0]) return pt[0];
   double m = (src[1] - pt[1]) / (src[0] - pt[0]);
   double b = pt[1] - m*pt[0];
-  return m*y + b;
+  return m*x + b;
 }
 
-void projectInterval(double src[2], double pt1[2], double pt2[2], double y, double interval[2])
+void projectInterval(double src[2], double pt1[2], double pt2[2], double x, double interval[2])
 {
-  interval[0] = projectPoint(src, pt1, y);
-  interval[1] = projectPoint(src, pt2, y);
+  interval[0] = projectPoint(src, pt1, x);
+  interval[1] = projectPoint(src, pt2, x);
   if(interval[0] > interval[1])
-  	std::swap(interval[0], interval[1]);
+    std::swap(interval[0], interval[1]);
 }
 
 bool intervalsIntersect(double interval1[2], double interval2[2])
 {
-	return interval1[0] < interval2[1] && interval2[0] < interval1[1];
+  return interval1[0] < interval2[1] && interval2[0] < interval1[1];
 }
 
 int main(int argc, const char* argv[])
@@ -49,8 +51,7 @@ int main(int argc, const char* argv[])
   // Dim = number of pixels X detectors * views.
   int P = params.num_pixels*params.num_pixels;
   int D = params.num_detectors*params.num_views;
-  std::vector<std::vector<double>> A(D);
-  for(auto row : A) row.resize(P);
+  std::vector<std::vector<double> > A(D, std::vector<double>(P));
   
   for(int v=0; v<1; v++)
   for(int d=0; d<params.num_detectors; d++)
@@ -67,7 +68,7 @@ int main(int argc, const char* argv[])
     
     for(int c=0; c<params.num_pixels; c++)
     {
-      double px_x = col_begin - (c+0.5)*px_width; 
+      double px_x = (c+0.5)*px_width - col_begin; 
       std::cout << "col " << c << ": " << px_x << "\n";
       
       double cos_correction1 = src[0]/std::sqrt((det_proj_interval[0] - src[1])*(det_proj_interval[0] - src[1]) + src[0]*src[0]);
@@ -81,15 +82,17 @@ int main(int argc, const char* argv[])
       {
         double px1[] = {px_x, col_begin - (r)*px_width};
         double px2[] = {px_x, col_begin - (r+1)*px_width};
-		    double px_proj_interval[2];
-				projectInterval(src, px1, px2, 0, px_proj_interval);
+        double px_proj_interval[2];
+        projectInterval(src, px1, px2, 0, px_proj_interval);
 				
 				if(intervalsIntersect(px_proj_interval, det_proj_interval))
 				{
 					double det_width = det_proj_interval[1] - det_proj_interval[0];
 					double det_px_overlap = std::min(det_proj_interval[1], px_proj_interval[1]) - std::max(det_proj_interval[0], px_proj_interval[0]); 
     			printPoint(px_proj_interval, "px proj interval: ", " in\n");
-    			std::cout << "weight: " << det_px_overlap / (det_width * cos_correction) << "\n";
+    			double weight = det_px_overlap / (det_width * cos_correction);
+    			A[d][c*params.num_pixels + r] = weight;
+    			std::cout << "weight: " << weight << "\n";
     		}
     		else
     		{
@@ -101,6 +104,14 @@ int main(int argc, const char* argv[])
       std::cout << "\n";
     }
   }
-	
+  
+  std::cout << std::setprecision(4) << std::fixed;
+  
+  for(auto row : A)
+  {
+  	for(auto entry : row)
+  		std::cout << entry << " ";
+	  std::cout << '\n';
+	}
   return 0;
 }
