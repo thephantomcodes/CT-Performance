@@ -1,10 +1,12 @@
 #include <algorithm>
-#include <math.h>
+#include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <numeric>
 #include <vector>
 #include <chrono>
 #include "ProjectionParameters.h"
+#include "Image.h"
 
 void printPoint(double point[], std::string prefix="", std::string suffix="")
 {
@@ -33,6 +35,21 @@ bool intervalsIntersect(double interval1[2], double interval2[2])
   return interval1[0] < interval2[1] && interval2[0] < interval1[1];
 }
 
+double dot(std::vector<double> a, std::vector<double> b)
+{
+  if(a.size() != b.size())
+  {
+    std::cout << "dot: size mismatch " << a.size() << " != " << b.size() << "\n";
+    return 0.0;
+  }
+  
+  double dot_product = 0.0;
+  auto itb = b.begin();
+  for(auto ita=a.begin(); ita != a.end(); ita++)
+  	dot_product += *ita * *itb++;
+  return dot_product;
+}
+
 void rotatePoint(double point[2], double theta)
 {
   double point_copy[2] = {point[0], point[1]};
@@ -55,6 +72,9 @@ int main(int argc, const char* argv[])
   
   auto params = Projection::ProjectionParameters(50.0, 55.0, sysSize, sysSize, sysSize, 10.0, fov);
   //Projection::PrintProjectionParameters(params);
+//  Image::Image img = Image::Image(params);
+//  Image::makeUnitDisk(img, params.num_pixels/2);
+  
   
   double det_len = params.detector_length/sysSize;
   double det_begin = 0.5*params.detector_length;
@@ -66,7 +86,12 @@ int main(int argc, const char* argv[])
   // Dim = number of pixels X detectors * views.
   int P = params.num_pixels*params.num_pixels;
   int D = params.num_detectors*params.num_views;
-  std::vector<std::vector<double> > A(D, std::vector<double>(P));
+//  std::vector<std::vector<double> > A(D, std::vector<double>(P));
+  std::vector<double> A(P);
+  
+  std::vector<double> img(P);
+  std::iota(img.begin(), img.end(), 1.0);
+  std::vector<double> sinogram(D);
   
   for(int v=0; v<params.num_views; v++)
   {
@@ -122,7 +147,8 @@ int main(int argc, const char* argv[])
         double cos_correction2 = src[0]/std::sqrt((det_proj_interval[1] - src[1])*(det_proj_interval[1] - src[1]) + src[0]*src[0]);
         double cos_correction = std::abs(0.5*(cos_correction1 + cos_correction2));
 //        std::cout << "cos " << cos_correction1 << " " << cos_correction2 << " " << cos_correction << "\n";
-
+				
+				int sinogram_index = 0;
         for(int r=0; r<params.num_pixels; r++)
         {
           double px1[] = {px_x, (r)*px_width - col_begin};
@@ -136,12 +162,12 @@ int main(int argc, const char* argv[])
             double det_px_overlap = std::min(det_proj_interval[1], px_proj_interval[1]) - std::max(det_proj_interval[0], px_proj_interval[0]); 
             printPoint(px_proj_interval, "px proj interval: ", " in\n");
             double weight = det_px_overlap / (det_width * cos_correction);
-            int row_index = (v+1)*params.num_views - d-1;
-            int col_index = (r+1)*params.num_pixels - c-1;
+            sinogram_index = (v+1)*params.num_views - d-1;
+            int img_index = (r+1)*params.num_pixels - c-1;
             if(swap_indices)
-              col_index = (c)*params.num_pixels + r;
-            A[row_index][col_index] = weight;
-            //std::cout << "weight: " << weight << "\n";
+              img_index = (c)*params.num_pixels + r;
+//            A[sinogram_index][img_index] = weight;
+            A[img_index] = weight;
           }
           else
           {
@@ -149,23 +175,26 @@ int main(int argc, const char* argv[])
             //std::cout << "weight: " << 0 << "\n";
           }  
         }
-        //std::cout << "\n";
+        sinogram[sinogram_index] = dot(A, img);
       }
+      std::fill(A.begin(), A.end(), 0);
     }
     vend = std::chrono::system_clock::now(); 
-  std::chrono::duration<double> velapsed_seconds = vend - vstart;
-  std::cout << "velapsed time: " << v << " " << velapsed_seconds.count() << "s\n";
+    std::chrono::duration<double> velapsed_seconds = vend - vstart;
+    std::cout << "velapsed time: " << v << " " << velapsed_seconds.count() << "s\n";
   }
   end = std::chrono::system_clock::now(); 
   std::chrono::duration<double> elapsed_seconds = end - start;
   std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
   std::cout << std::setprecision(4) << std::fixed; 
-  for(auto row : A)
-  {
-    for(auto entry : row)
-      std::cout << entry << " ";
-    std::cout << '\n';
-  }
-  
+//  for(auto row : A)
+//  {
+//    for(auto entry : row)
+//      std::cout << entry << " ";
+//    std::cout << '\n';
+//  }
+  for(auto s : sinogram)
+    std::cout << s << " ";
+  std::cout << '\n';
   return 0;
 }
