@@ -3,15 +3,6 @@
 
 namespace Projection
 {
-	class PointValue
-	{
-		public:
-			PointValue(double x_, double y_, double value_);
-			double x, y, value;
-	};
-	
-	void RotatePointValue(PointValue *pointValue, double theta);
-	
   class ProjectionParameters
   {
     public:
@@ -27,8 +18,6 @@ namespace Projection
   };
   
   void PrintProjectionParameters(const ProjectionParameters &params);
-  double Project_x(PointValue s, PointValue d, double x, double px_width);
-  double Project_y(PointValue s, PointValue d, double y, double px_width);
 }
 
 #endif  // PROJ_PARAMS_H
