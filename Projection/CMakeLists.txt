@@ -16,4 +16,4 @@ file(GLOB HEADERS
 include_directories("${CMAKE_SOURCE_DIR}/src"
     "${CMAKE_SOURCE_DIR}/include")
 
-add_executable(projection ${SOURCES} ${HEADERS})
+add_executable(projection.o ${SOURCES} ${HEADERS})

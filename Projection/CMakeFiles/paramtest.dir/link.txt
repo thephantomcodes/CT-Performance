@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/paramtest.dir/src/Image.cpp.o CMakeFiles/paramtest.dir/src/ProjectionParameters.cpp.o CMakeFiles/paramtest.dir/src/Scanner.cpp.o CMakeFiles/paramtest.dir/src/paramtest.cpp.o  -o paramtest 

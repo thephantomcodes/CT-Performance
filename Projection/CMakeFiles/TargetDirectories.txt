@@ -1,3 +1,0 @@
-/home/dstring/code/CT-Performance/CT-Performance/Projection/CMakeFiles/rebuild_cache.dir
-/home/dstring/code/CT-Performance/CT-Performance/Projection/CMakeFiles/edit_cache.dir
-/home/dstring/code/CT-Performance/CT-Performance/Projection/CMakeFiles/projection.dir

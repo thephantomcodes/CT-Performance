@@ -109,7 +109,7 @@ int main(int argc, const char* argv[])
   std::iota(img.begin(), img.end(), 1.0);
   std::vector<double> sinogram(D);
   
-  writePpmHeader("A.ppm", P, D);
+//  writePpmHeader("A.ppm", P, D);
   
   for(int v=0; v<params.num_views; v++)
   {
@@ -195,7 +195,7 @@ int main(int argc, const char* argv[])
         }
         sinogram[sinogram_index] = dot(A, img);
       }
-      writePpmData("A.ppm", A, P);
+//      writePpmData("A.ppm", A, P);
       std::fill(A.begin(), A.end(), 0);
     }
     vend = std::chrono::system_clock::now(); 
