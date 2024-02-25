@@ -3,10 +3,10 @@
 #include <iomanip>
 #include <iostream>
 #include <numeric>
+#include <fstream>
 #include <vector>
 #include <chrono>
 #include "ProjectionParameters.h"
-#include "Image.h"
 
 void printPoint(double point[], std::string prefix="", std::string suffix="")
 {
@@ -60,6 +60,25 @@ void rotatePoint(double point[2], double theta)
   point[1] = point_copy[0]*vec[0] + point_copy[1]*vec[1];
 }
 
+void writePpmHeader(std::string ofname, int width, int height)
+{
+  std::fstream ofs;
+  ofs.open(ofname, std::fstream::out | std::fstream::binary);
+  ofs << "P2\n" << width << ' ' << height << "\n255\n";
+  ofs.close();
+}
+
+void writePpmData(std::string ofname, std::vector<double> data, int width)
+{
+  std::fstream ofs;
+  ofs.open(ofname, std::fstream::out | std::fstream::binary | std::ios_base::app);
+  for (int w = 0; w < width; ++w)
+  {
+    ofs << (int)(255.0*data[w]) << '\n';
+  }
+  ofs.close();
+}
+
 int main(int argc, const char* argv[])
 {
   bool outputAll = false;
@@ -71,9 +90,6 @@ int main(int argc, const char* argv[])
   start = std::chrono::system_clock::now();
   
   auto params = Projection::ProjectionParameters(50.0, 55.0, sysSize, sysSize, sysSize, 10.0, fov);
-  //Projection::PrintProjectionParameters(params);
-//  Image::Image img = Image::Image(params);
-//  Image::makeUnitDisk(img, params.num_pixels/2);
   
   
   double det_len = params.detector_length/sysSize;
@@ -92,6 +108,8 @@ int main(int argc, const char* argv[])
   std::vector<double> img(P);
   std::iota(img.begin(), img.end(), 1.0);
   std::vector<double> sinogram(D);
+  
+  writePpmHeader("A.ppm", P, D);
   
   for(int v=0; v<params.num_views; v++)
   {
@@ -177,6 +195,7 @@ int main(int argc, const char* argv[])
         }
         sinogram[sinogram_index] = dot(A, img);
       }
+      writePpmData("A.ppm", A, P);
       std::fill(A.begin(), A.end(), 0);
     }
     vend = std::chrono::system_clock::now(); 
@@ -193,8 +212,8 @@ int main(int argc, const char* argv[])
 //      std::cout << entry << " ";
 //    std::cout << '\n';
 //  }
-  for(auto s : sinogram)
-    std::cout << s << " ";
-  std::cout << '\n';
+//  for(auto s : sinogram)
+//    std::cout << s << " ";
+//  std::cout << '\n';
   return 0;
 }

@@ -111,44 +111,17 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named paramtest
+# Target rules for targets named projection
 
 # Build rule for target.
-paramtest: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 paramtest
-.PHONY : paramtest
+projection: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 projection
+.PHONY : projection
 
 # fast build rule for target.
-paramtest/fast:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/build
-.PHONY : paramtest/fast
-
-src/Image.o: src/Image.cpp.o
-
-.PHONY : src/Image.o
-
-# target to build an object file
-src/Image.cpp.o:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/src/Image.cpp.o
-.PHONY : src/Image.cpp.o
-
-src/Image.i: src/Image.cpp.i
-
-.PHONY : src/Image.i
-
-# target to preprocess a source file
-src/Image.cpp.i:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/src/Image.cpp.i
-.PHONY : src/Image.cpp.i
-
-src/Image.s: src/Image.cpp.s
-
-.PHONY : src/Image.s
-
-# target to generate assembly for a file
-src/Image.cpp.s:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/src/Image.cpp.s
-.PHONY : src/Image.cpp.s
+projection/fast:
+	$(MAKE) -f CMakeFiles/projection.dir/build.make CMakeFiles/projection.dir/build
+.PHONY : projection/fast
 
 src/ProjectionParameters.o: src/ProjectionParameters.cpp.o
 
@@ -156,7 +129,7 @@ src/ProjectionParameters.o: src/ProjectionParameters.cpp.o
 
 # target to build an object file
 src/ProjectionParameters.cpp.o:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/src/ProjectionParameters.cpp.o
+	$(MAKE) -f CMakeFiles/projection.dir/build.make CMakeFiles/projection.dir/src/ProjectionParameters.cpp.o
 .PHONY : src/ProjectionParameters.cpp.o
 
 src/ProjectionParameters.i: src/ProjectionParameters.cpp.i
@@ -165,7 +138,7 @@ src/ProjectionParameters.i: src/ProjectionParameters.cpp.i
 
 # target to preprocess a source file
 src/ProjectionParameters.cpp.i:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/src/ProjectionParameters.cpp.i
+	$(MAKE) -f CMakeFiles/projection.dir/build.make CMakeFiles/projection.dir/src/ProjectionParameters.cpp.i
 .PHONY : src/ProjectionParameters.cpp.i
 
 src/ProjectionParameters.s: src/ProjectionParameters.cpp.s
@@ -174,62 +147,35 @@ src/ProjectionParameters.s: src/ProjectionParameters.cpp.s
 
 # target to generate assembly for a file
 src/ProjectionParameters.cpp.s:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/src/ProjectionParameters.cpp.s
+	$(MAKE) -f CMakeFiles/projection.dir/build.make CMakeFiles/projection.dir/src/ProjectionParameters.cpp.s
 .PHONY : src/ProjectionParameters.cpp.s
 
-src/Scanner.o: src/Scanner.cpp.o
+src/projection.o: src/projection.cpp.o
 
-.PHONY : src/Scanner.o
-
-# target to build an object file
-src/Scanner.cpp.o:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/src/Scanner.cpp.o
-.PHONY : src/Scanner.cpp.o
-
-src/Scanner.i: src/Scanner.cpp.i
-
-.PHONY : src/Scanner.i
-
-# target to preprocess a source file
-src/Scanner.cpp.i:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/src/Scanner.cpp.i
-.PHONY : src/Scanner.cpp.i
-
-src/Scanner.s: src/Scanner.cpp.s
-
-.PHONY : src/Scanner.s
-
-# target to generate assembly for a file
-src/Scanner.cpp.s:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/src/Scanner.cpp.s
-.PHONY : src/Scanner.cpp.s
-
-src/paramtest.o: src/paramtest.cpp.o
-
-.PHONY : src/paramtest.o
+.PHONY : src/projection.o
 
 # target to build an object file
-src/paramtest.cpp.o:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/src/paramtest.cpp.o
-.PHONY : src/paramtest.cpp.o
+src/projection.cpp.o:
+	$(MAKE) -f CMakeFiles/projection.dir/build.make CMakeFiles/projection.dir/src/projection.cpp.o
+.PHONY : src/projection.cpp.o
 
-src/paramtest.i: src/paramtest.cpp.i
+src/projection.i: src/projection.cpp.i
 
-.PHONY : src/paramtest.i
+.PHONY : src/projection.i
 
 # target to preprocess a source file
-src/paramtest.cpp.i:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/src/paramtest.cpp.i
-.PHONY : src/paramtest.cpp.i
+src/projection.cpp.i:
+	$(MAKE) -f CMakeFiles/projection.dir/build.make CMakeFiles/projection.dir/src/projection.cpp.i
+.PHONY : src/projection.cpp.i
 
-src/paramtest.s: src/paramtest.cpp.s
+src/projection.s: src/projection.cpp.s
 
-.PHONY : src/paramtest.s
+.PHONY : src/projection.s
 
 # target to generate assembly for a file
-src/paramtest.cpp.s:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/src/paramtest.cpp.s
-.PHONY : src/paramtest.cpp.s
+src/projection.cpp.s:
+	$(MAKE) -f CMakeFiles/projection.dir/build.make CMakeFiles/projection.dir/src/projection.cpp.s
+.PHONY : src/projection.cpp.s
 
 # Help Target
 help:
@@ -239,19 +185,13 @@ help:
 	@echo "... depend"
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
-	@echo "... paramtest"
-	@echo "... src/Image.o"
-	@echo "... src/Image.i"
-	@echo "... src/Image.s"
+	@echo "... projection"
 	@echo "... src/ProjectionParameters.o"
 	@echo "... src/ProjectionParameters.i"
 	@echo "... src/ProjectionParameters.s"
-	@echo "... src/Scanner.o"
-	@echo "... src/Scanner.i"
-	@echo "... src/Scanner.s"
-	@echo "... src/paramtest.o"
-	@echo "... src/paramtest.i"
-	@echo "... src/paramtest.s"
+	@echo "... src/projection.o"
+	@echo "... src/projection.i"
+	@echo "... src/projection.s"
 .PHONY : help
 
 

@@ -60,39 +60,39 @@ CMAKE_SOURCE_DIR = /home/dstring/code/CT-Performance/CT-Performance/Projection
 CMAKE_BINARY_DIR = /home/dstring/code/CT-Performance/CT-Performance/Projection
 
 #=============================================================================
-# Target rules for target CMakeFiles/paramtest.dir
+# Target rules for target CMakeFiles/projection.dir
 
 # All Build rule for target.
-CMakeFiles/paramtest.dir/all:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/depend
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/dstring/code/CT-Performance/CT-Performance/Projection/CMakeFiles --progress-num=1,2,3,4,5 "Built target paramtest"
-.PHONY : CMakeFiles/paramtest.dir/all
+CMakeFiles/projection.dir/all:
+	$(MAKE) -f CMakeFiles/projection.dir/build.make CMakeFiles/projection.dir/depend
+	$(MAKE) -f CMakeFiles/projection.dir/build.make CMakeFiles/projection.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/dstring/code/CT-Performance/CT-Performance/Projection/CMakeFiles --progress-num=1,2,3 "Built target projection"
+.PHONY : CMakeFiles/projection.dir/all
 
 # Include target in all.
-all: CMakeFiles/paramtest.dir/all
+all: CMakeFiles/projection.dir/all
 
 .PHONY : all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/paramtest.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/dstring/code/CT-Performance/CT-Performance/Projection/CMakeFiles 5
-	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/paramtest.dir/all
+CMakeFiles/projection.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/dstring/code/CT-Performance/CT-Performance/Projection/CMakeFiles 3
+	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/projection.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/dstring/code/CT-Performance/CT-Performance/Projection/CMakeFiles 0
-.PHONY : CMakeFiles/paramtest.dir/rule
+.PHONY : CMakeFiles/projection.dir/rule
 
 # Convenience name for target.
-paramtest: CMakeFiles/paramtest.dir/rule
+projection: CMakeFiles/projection.dir/rule
 
-.PHONY : paramtest
-
-# clean rule for target.
-CMakeFiles/paramtest.dir/clean:
-	$(MAKE) -f CMakeFiles/paramtest.dir/build.make CMakeFiles/paramtest.dir/clean
-.PHONY : CMakeFiles/paramtest.dir/clean
+.PHONY : projection
 
 # clean rule for target.
-clean: CMakeFiles/paramtest.dir/clean
+CMakeFiles/projection.dir/clean:
+	$(MAKE) -f CMakeFiles/projection.dir/build.make CMakeFiles/projection.dir/clean
+.PHONY : CMakeFiles/projection.dir/clean
+
+# clean rule for target.
+clean: CMakeFiles/projection.dir/clean
 
 .PHONY : clean
 
