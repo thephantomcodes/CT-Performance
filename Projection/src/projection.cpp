@@ -68,15 +68,34 @@ void writePpmHeader(std::string ofname, int width, int height)
   ofs.close();
 }
 
-void writePpmData(std::string ofname, std::vector<double> data, int width)
+void writePpmData(std::string ofname, std::vector<double> data, int width, double max_val)
 {
   std::fstream ofs;
   ofs.open(ofname, std::fstream::out | std::fstream::binary | std::ios_base::app);
   for (int w = 0; w < width; ++w)
   {
-    ofs << (int)(255.0*data[w]) << '\n';
+    ofs << (int)(255.0*data[w]/max_val) << '\n';
   }
   ofs.close();
+}
+
+void readFile(std::string fname, std::vector<double>& vec, int size)
+{
+  std::fstream fs;
+  fs.open(fname, std::fstream::in | std::fstream::binary);
+  if (!fs.is_open())
+  {
+    std::cerr << "Can't find input file " << fname << "\n";
+    exit(-1);
+  }
+  
+  double buffer;
+  for(int i=0; i<size; i++)
+  {
+    fs.read(reinterpret_cast<char*>(&buffer), 8);
+    vec[i] = buffer;
+  }
+  fs.close();
 }
 
 int main(int argc, const char* argv[])
@@ -106,7 +125,13 @@ int main(int argc, const char* argv[])
   std::vector<double> A(P);
   
   std::vector<double> img(P);
-  std::iota(img.begin(), img.end(), 1.0);
+  readFile("input/unit_disc_" + std::to_string(params.num_pixels) + ".dat", img, P);
+//  for(int q=0; q<params.num_pixels; q++)
+//  {
+//    for(int r=0; r<params.num_pixels; r++)
+//      std::cout << img[q*params.num_pixels + r] << " ";
+//    std::cout << '\n';
+//  }
   std::vector<double> sinogram(D);
   
 //  writePpmHeader("A.ppm", P, D);
@@ -205,7 +230,13 @@ int main(int argc, const char* argv[])
   end = std::chrono::system_clock::now(); 
   std::chrono::duration<double> elapsed_seconds = end - start;
   std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
-  std::cout << std::setprecision(4) << std::fixed; 
+  std::cout << std::setprecision(2) << std::fixed;
+  
+  writePpmHeader("output/sino_unit_disc_" + std::to_string(params.num_pixels) + ".ppm", params.num_detectors, params.num_views);
+  auto it = std::max_element(sinogram.begin(), sinogram.end());
+  double max_val = *it;
+  writePpmData("output/sino_unit_disc_" + std::to_string(params.num_pixels) + ".ppm", sinogram, D, max_val);
+  
 //  for(auto row : A)
 //  {
 //    for(auto entry : row)
@@ -215,5 +246,6 @@ int main(int argc, const char* argv[])
 //  for(auto s : sinogram)
 //    std::cout << s << " ";
 //  std::cout << '\n';
+  
   return 0;
 }
