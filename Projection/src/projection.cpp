@@ -117,12 +117,9 @@ int main(int argc, const char* argv[])
   double px_width = 2.0*params.phantom_radius/params.num_pixels;
   double rotation_delta = params.field_of_view/params.num_views;
   
-  // Declare system matrix A. 
   // Dim = number of pixels X detectors * views.
   int P = params.num_pixels*params.num_pixels;
   int D = params.num_detectors*params.num_views;
-//  std::vector<std::vector<double> > A(D, std::vector<double>(P));
-  std::vector<double> A(P);
   
   std::vector<double> img(P);
   readFile("input/unit_disc_" + std::to_string(params.num_pixels) + ".dat", img, P);
@@ -209,8 +206,11 @@ int main(int argc, const char* argv[])
             int img_index = (r+1)*params.num_pixels - c-1;
             if(swap_indices)
               img_index = (c)*params.num_pixels + r;
-//            A[sinogram_index][img_index] = weight;
-            A[img_index] = weight;
+            sinogram[sinogram_index] += weight * img[img_index];
+            if(v==7 && c>20 && d==9)
+            {
+              std::cout << "wdwc " << weight << " " << det_px_overlap << " " << det_width << " " << cos_correction << "\n";
+            }
           }
           else
           {
@@ -218,10 +218,14 @@ int main(int argc, const char* argv[])
             //std::cout << "weight: " << 0 << "\n";
           }  
         }
-        sinogram[sinogram_index] = dot(A, img);
+
+        if(sinogram[sinogram_index] > 33)
+        {
+          std::cout << "vcds " << v << " " << c << " " << d << " " << sinogram[sinogram_index] << '\n';
+        }
       }
 //      writePpmData("A.ppm", A, P);
-      std::fill(A.begin(), A.end(), 0);
+
     }
     vend = std::chrono::system_clock::now(); 
     std::chrono::duration<double> velapsed_seconds = vend - vstart;
@@ -234,8 +238,8 @@ int main(int argc, const char* argv[])
   
   writePpmHeader("output/sino_unit_disc_" + std::to_string(params.num_pixels) + ".ppm", params.num_detectors, params.num_views);
   auto it = std::max_element(sinogram.begin(), sinogram.end());
-  double max_val = *it;
-  writePpmData("output/sino_unit_disc_" + std::to_string(params.num_pixels) + ".ppm", sinogram, D, max_val);
+  std::cout << "max val sino " << *it << '\n';
+  writePpmData("output/sino_unit_disc_" + std::to_string(params.num_pixels) + ".ppm", sinogram, D, *it);
   
 //  for(auto row : A)
 //  {
@@ -243,9 +247,14 @@ int main(int argc, const char* argv[])
 //      std::cout << entry << " ";
 //    std::cout << '\n';
 //  }
-//  for(auto s : sinogram)
-//    std::cout << s << " ";
-//  std::cout << '\n';
+  int i=0;
+  for(auto s : sinogram)
+  {
+    std::cout << s << " ";
+    if(!(++i % 32))
+    	std::cout << '\n';
+  }
+  std::cout << '\n';
   
   return 0;
 }
