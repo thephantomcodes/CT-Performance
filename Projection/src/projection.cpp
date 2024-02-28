@@ -52,6 +52,7 @@ double dot(std::vector<double> a, std::vector<double> b)
 
 void rotatePoint(double point[2], double theta)
 {
+  theta = 3.14159*theta/180.0;
   double point_copy[2] = {point[0], point[1]};
   double vec[2] = {cos(theta) , -sin(theta)};
   point[0] = point_copy[0]*vec[0] + point_copy[1]*vec[1];
@@ -207,21 +208,7 @@ int main(int argc, const char* argv[])
             if(swap_indices)
               img_index = (c)*params.num_pixels + r;
             sinogram[sinogram_index] += weight * img[img_index];
-            if(v==7 && c>20 && d==9)
-            {
-              std::cout << "wdwc " << weight << " " << det_px_overlap << " " << det_width << " " << cos_correction << "\n";
-            }
           }
-          else
-          {
-            printPoint(px_proj_interval, "px proj interval: ", " out\n");
-            //std::cout << "weight: " << 0 << "\n";
-          }  
-        }
-
-        if(sinogram[sinogram_index] > 33)
-        {
-          std::cout << "vcds " << v << " " << c << " " << d << " " << sinogram[sinogram_index] << '\n';
         }
       }
 //      writePpmData("A.ppm", A, P);
@@ -247,14 +234,14 @@ int main(int argc, const char* argv[])
 //      std::cout << entry << " ";
 //    std::cout << '\n';
 //  }
-  int i=0;
-  for(auto s : sinogram)
-  {
-    std::cout << s << " ";
-    if(!(++i % 32))
-    	std::cout << '\n';
-  }
-  std::cout << '\n';
+//  int i=0;
+//  for(auto s : sinogram)
+//  {
+//    std::cout << s << " ";
+//    if(!(++i % 32))
+//    	std::cout << '\n';
+//  }
+//  std::cout << '\n';
   
   return 0;
 }
