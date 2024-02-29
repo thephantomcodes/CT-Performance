@@ -6,6 +6,7 @@
 #include <fstream>
 #include <vector>
 #include <chrono>
+#include <string>
 #include "ProjectionParameters.h"
 
 void printPoint(double point[], std::string prefix="", std::string suffix="")
@@ -105,6 +106,15 @@ int main(int argc, const char* argv[])
   int sysSize = (argc <= 1) ? 2 : std::atoi(argv[1]);
   double fov = (argc <= 2) ? 180.0 : (double)std::atof(argv[2]);
   double phase = (argc <= 3) ? 0.0 : (double)std::atof(argv[3]);
+  std::string in_file_prefix = "input/unit_disc_";
+  std::string out_file_prefix = "output/sino_unit_disc_";
+  char input_img = (argc <= 4) ? 'u' : *argv[4];
+  if(input_img == 'p')
+  {
+    in_file_prefix = "input/phantom_";
+    out_file_prefix = "output/sino_phantom_";
+  }
+  
   
   std::chrono::time_point<std::chrono::system_clock> start, end;
   start = std::chrono::system_clock::now();
@@ -123,7 +133,7 @@ int main(int argc, const char* argv[])
   int D = params.num_detectors*params.num_views;
   
   std::vector<double> img(P);
-  readFile("input/unit_disc_" + std::to_string(params.num_pixels) + ".dat", img, P);
+  readFile(in_file_prefix + std::to_string(params.num_pixels) + ".dat", img, P);
 //  for(int q=0; q<params.num_pixels; q++)
 //  {
 //    for(int r=0; r<params.num_pixels; r++)
@@ -134,31 +144,20 @@ int main(int argc, const char* argv[])
   
 //  writePpmHeader("A.ppm", P, D);
   
+  
   for(int v=0; v<params.num_views; v++)
   {
   	std::chrono::time_point<std::chrono::system_clock> vstart, vend;
   	vstart = std::chrono::system_clock::now();
     double theta = std::fmod(v*rotation_delta + phase, 360.0);
-//    std::cout << "theta " << theta;
     bool swap_indices = false;
     bool swap_cols = false;
-    if(theta > 45.0 && theta <= 135.0)
+    if((theta > 45.0 && theta <= 135.0) || (theta > 225.0 && theta <= 315.0))
     {
       theta -= 90.0;
       swap_indices = true;
     }
-    else if(theta > 135.0 && theta <= 225.0)
-    {
-      theta -= 180.0;
-      swap_cols = true;
-    }
-    else if(theta > 225.0 && theta <= 315.0)
-    {
-      theta -= 270.0;
-      swap_indices = true;
-      swap_cols = true;
-    }
-//    std::cout << " post " << theta << '\n';
+
     double src[] = {params.scanning_radius, 0.0};
     rotatePoint(src, theta);
     
@@ -223,10 +222,10 @@ int main(int argc, const char* argv[])
   std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
   std::cout << std::setprecision(2) << std::fixed;
   
-  writePpmHeader("output/sino_unit_disc_" + std::to_string(params.num_pixels) + ".ppm", params.num_detectors, params.num_views);
+  writePpmHeader(out_file_prefix + std::to_string(params.num_pixels) + ".ppm", params.num_detectors, params.num_views);
   auto it = std::max_element(sinogram.begin(), sinogram.end());
   std::cout << "max val sino " << *it << '\n';
-  writePpmData("output/sino_unit_disc_" + std::to_string(params.num_pixels) + ".ppm", sinogram, D, *it);
+  writePpmData(out_file_prefix + std::to_string(params.num_pixels) + ".ppm", sinogram, D, *it);
   
 //  for(auto row : A)
 //  {
