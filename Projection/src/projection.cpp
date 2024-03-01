@@ -11,7 +11,7 @@
 
 void printPoint(double point[], std::string prefix="", std::string suffix="")
 {
-  //std::cout << prefix << "(" << point[0] << "," << point[1] << ")" << suffix;
+  std::cout << prefix << "(" << point[0] << "," << point[1] << ")" << suffix;
 }
 
 double projectPoint(double src[2], double pt[2], double x)
@@ -34,21 +34,6 @@ void projectInterval(double src[2], double pt1[2], double pt2[2], double x, doub
 bool intervalsIntersect(double interval1[2], double interval2[2])
 {
   return interval1[0] < interval2[1] && interval2[0] < interval1[1];
-}
-
-double dot(std::vector<double> a, std::vector<double> b)
-{
-  if(a.size() != b.size())
-  {
-    std::cout << "dot: size mismatch " << a.size() << " != " << b.size() << "\n";
-    return 0.0;
-  }
-  
-  double dot_product = 0.0;
-  auto itb = b.begin();
-  for(auto ita=a.begin(); ita != a.end(); ita++)
-  	dot_product += *ita * *itb++;
-  return dot_product;
 }
 
 void rotatePoint(double point[2], double theta)
@@ -115,12 +100,10 @@ int main(int argc, const char* argv[])
     out_file_prefix = "output/sino_phantom_";
   }
   
-  
   std::chrono::time_point<std::chrono::system_clock> start, end;
   start = std::chrono::system_clock::now();
   
   auto params = Projection::ProjectionParameters(50.0, 55.0, sysSize, sysSize, sysSize, 10.0, fov);
-  
   
   double det_len = params.detector_length/sysSize;
   double det_begin = 0.5*params.detector_length;
@@ -128,35 +111,17 @@ int main(int argc, const char* argv[])
   double px_width = 2.0*params.phantom_radius/params.num_pixels;
   double rotation_delta = params.field_of_view/params.num_views;
   
-  // Dim = number of pixels X detectors * views.
-  int P = params.num_pixels*params.num_pixels;
-  int D = params.num_detectors*params.num_views;
-  
-  std::vector<double> img(P);
-  readFile(in_file_prefix + std::to_string(params.num_pixels) + ".dat", img, P);
-//  for(int q=0; q<params.num_pixels; q++)
-//  {
-//    for(int r=0; r<params.num_pixels; r++)
-//      std::cout << img[q*params.num_pixels + r] << " ";
-//    std::cout << '\n';
-//  }
-  std::vector<double> sinogram(D);
-  
-//  writePpmHeader("A.ppm", P, D);
-  
+  int total_pixels = params.num_pixels*params.num_pixels;
+  int total_detectors = params.num_detectors*params.num_views;
+  std::vector<double> img(total_pixels);
+  std::vector<double> sinogram(total_detectors);
+  readFile(in_file_prefix + std::to_string(params.num_pixels) + ".dat", img, total_pixels);
   
   for(int v=0; v<params.num_views; v++)
   {
-  	std::chrono::time_point<std::chrono::system_clock> vstart, vend;
-  	vstart = std::chrono::system_clock::now();
     double theta = std::fmod(v*rotation_delta + phase, 360.0);
-    bool swap_indices = false;
-    bool swap_cols = false;
-    if((theta > 45.0 && theta <= 135.0) || (theta > 225.0 && theta <= 315.0))
-    {
-      theta -= 90.0;
-      swap_indices = true;
-    }
+    bool swap_indices = (theta > 45.0 && theta <= 135.0) || (theta > 225.0 && theta <= 315.0);
+    theta -= ((double)swap_indices)*90.0;
 
     double src[] = {params.scanning_radius, 0.0};
     rotatePoint(src, theta);
@@ -165,30 +130,19 @@ int main(int argc, const char* argv[])
     {
       double det1[] = {-params.scanning_radius, det_begin - d*det_len};
       double det2[] = {-params.scanning_radius, det_begin - (d+1)*det_len};
-      //std::cout << "det: " << d << "\n";
       rotatePoint(det1, theta);
       rotatePoint(det2, theta);
-      printPoint(src, "src: ", "\n");
-      printPoint(det1, "d1: ", "\n");
-      printPoint(det2, "d2: ", "\n");
       
       double det_proj_interval[2];
       projectInterval(src, det1, det2, 0, det_proj_interval);
-      printPoint(det_proj_interval, "det proj interval: ", "\n\n");
       
       for(int c=0; c<params.num_pixels; c++)
       {
         double px_x = (c+0.5)*px_width - col_begin;
-        if(swap_cols)
-        	px_x = col_begin - (c+0.5)*px_width;
-        //std::cout << "col " << c << ": " << px_x << "\n";
-      
         double cos_correction1 = src[0]/std::sqrt((det_proj_interval[0] - src[1])*(det_proj_interval[0] - src[1]) + src[0]*src[0]);
         double cos_correction2 = src[0]/std::sqrt((det_proj_interval[1] - src[1])*(det_proj_interval[1] - src[1]) + src[0]*src[0]);
         double cos_correction = std::abs(0.5*(cos_correction1 + cos_correction2));
-//        std::cout << "cos " << cos_correction1 << " " << cos_correction2 << " " << cos_correction << "\n";
 				
-				int sinogram_index = 0;
         for(int r=0; r<params.num_pixels; r++)
         {
           double px1[] = {px_x, (r)*px_width - col_begin};
@@ -200,9 +154,8 @@ int main(int argc, const char* argv[])
           {
             double det_width = det_proj_interval[1] - det_proj_interval[0];
             double det_px_overlap = std::min(det_proj_interval[1], px_proj_interval[1]) - std::max(det_proj_interval[0], px_proj_interval[0]); 
-            printPoint(px_proj_interval, "px proj interval: ", " in\n");
             double weight = det_px_overlap / (det_width * cos_correction);
-            sinogram_index = (v+1)*params.num_views - d-1;
+            int sinogram_index = (v+1)*params.num_views - d-1;
             int img_index = (r+1)*params.num_pixels - c-1;
             if(swap_indices)
               img_index = (c)*params.num_pixels + r;
@@ -210,12 +163,7 @@ int main(int argc, const char* argv[])
           }
         }
       }
-//      writePpmData("A.ppm", A, P);
-
     }
-    vend = std::chrono::system_clock::now(); 
-    std::chrono::duration<double> velapsed_seconds = vend - vstart;
-    std::cout << "velapsed time: " << v << " " << velapsed_seconds.count() << "s\n";
   }
   end = std::chrono::system_clock::now(); 
   std::chrono::duration<double> elapsed_seconds = end - start;
@@ -223,24 +171,8 @@ int main(int argc, const char* argv[])
   std::cout << std::setprecision(2) << std::fixed;
   
   writePpmHeader(out_file_prefix + std::to_string(params.num_pixels) + ".ppm", params.num_detectors, params.num_views);
-  auto it = std::max_element(sinogram.begin(), sinogram.end());
-  std::cout << "max val sino " << *it << '\n';
-  writePpmData(out_file_prefix + std::to_string(params.num_pixels) + ".ppm", sinogram, D, *it);
-  
-//  for(auto row : A)
-//  {
-//    for(auto entry : row)
-//      std::cout << entry << " ";
-//    std::cout << '\n';
-//  }
-//  int i=0;
-//  for(auto s : sinogram)
-//  {
-//    std::cout << s << " ";
-//    if(!(++i % 32))
-//    	std::cout << '\n';
-//  }
-//  std::cout << '\n';
+  double sino_max = *std::max_element(sinogram.begin(), sinogram.end());
+  writePpmData(out_file_prefix + std::to_string(params.num_pixels) + ".ppm", sinogram, total_detectors, sino_max);
   
   return 0;
 }
