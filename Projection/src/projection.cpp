@@ -170,8 +170,15 @@ int main(int argc, const char* argv[])
   std::chrono::time_point<std::chrono::system_clock> start, end;
   start = std::chrono::system_clock::now();
   
-  std::thread t1(project, params, &img, &sinogram, 0, params.num_views);
+  std::thread t1(project, params, &img, &sinogram, 0, params.num_views/4);
+  std::thread t2(project, params, &img, &sinogram, params.num_views/4, params.num_views/2);
+  std::thread t3(project, params, &img, &sinogram, params.num_views/2, 3*params.num_views/4);
+  std::thread t4(project, params, &img, &sinogram, 3*params.num_views/4, params.num_views);
+  
   t1.join();
+  t2.join();
+  t3.join();
+  t4.join();
   
   end = std::chrono::system_clock::now(); 
   std::chrono::duration<double> elapsed_seconds = end - start;
