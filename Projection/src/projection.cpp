@@ -143,7 +143,14 @@ int main(int argc, const char* argv[])
         double cos_correction2 = src[0]/std::sqrt((det_proj_interval[1] - src[1])*(det_proj_interval[1] - src[1]) + src[0]*src[0]);
         double cos_correction = std::abs(0.5*(cos_correction1 + cos_correction2));
 				
-        for(int r=0; r<params.num_pixels; r++)
+        double pxb1 = (projectPoint(src, det1, px_x));
+        double pxb2 = (projectPoint(src, det2, px_x));
+        if(pxb1 > pxb2) std::swap(pxb1, pxb2);
+        
+        int px_bound1 = std::max((int)std::floor((pxb1 + col_begin)/px_width), 0);
+        int px_bound2 = std::min((int)std::ceil((pxb2 + col_begin)/px_width), params.num_pixels);
+        
+        for(int r=px_bound1; r<px_bound2; r++)
         {
           double px1[] = {px_x, (r)*px_width - col_begin};
           double px2[] = {px_x, (r+1)*px_width - col_begin};
