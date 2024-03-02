@@ -7,6 +7,7 @@
 #include <vector>
 #include <chrono>
 #include <string>
+#include <thread>
 #include "ProjectionParameters.h"
 
 void printPoint(double point[], std::string prefix="", std::string suffix="")
@@ -169,7 +170,8 @@ int main(int argc, const char* argv[])
   std::chrono::time_point<std::chrono::system_clock> start, end;
   start = std::chrono::system_clock::now();
   
-  project(params, &img, &sinogram, 0, params.num_views);
+  std::thread t1(project, params, &img, &sinogram, 0, params.num_views);
+  t1.join();
   
   end = std::chrono::system_clock::now(); 
   std::chrono::duration<double> elapsed_seconds = end - start;
