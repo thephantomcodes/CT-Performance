@@ -4,7 +4,7 @@
 
 namespace Projection
 {
-	ProjectionParameters::ProjectionParameters(double scanning_radius_, double detector_length_, int num_pixels_, int num_views_, int num_detectors_, double phantom_radius_, double field_of_view_)
+	ProjectionParameters::ProjectionParameters(double scanning_radius_, double detector_length_, int num_pixels_, int num_views_, int num_detectors_, double phantom_radius_, double field_of_view_, double phase_)
     : scanning_radius(scanning_radius_)
     , detector_length(detector_length_)
     , num_pixels(num_pixels_)
@@ -12,7 +12,13 @@ namespace Projection
     , num_detectors(num_detectors_)
     , phantom_radius(phantom_radius_)
     , field_of_view(field_of_view_)
+    , phase(phase_)
   {
+    det_len = detector_length/num_detectors;
+    det_begin = 0.5*detector_length;
+    col_begin = phantom_radius;
+    px_width = 2.0*phantom_radius/num_pixels;
+    rotation_delta = field_of_view/num_views;
   }
   
   void PrintProjectionParameters(const ProjectionParameters &params)

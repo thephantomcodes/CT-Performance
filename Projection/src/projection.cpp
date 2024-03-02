@@ -85,6 +85,65 @@ void readFile(std::string fname, std::vector<double>& vec, int size)
   fs.close();
 }
 
+void project(Projection::ProjectionParameters params, std::vector<double> *img, std::vector<double> *sinogram, int view_begin, int view_end)
+{
+  for(int v=view_begin; v<view_end; v++)
+  {
+    double theta = std::fmod(v*params.rotation_delta + params.phase, 360.0);
+    bool swap_indices = (theta > 45.0 && theta <= 135.0) || (theta > 225.0 && theta <= 315.0);
+    theta -= ((double)swap_indices)*90.0;
+
+    double src[] = {params.scanning_radius, 0.0};
+    rotatePoint(src, theta);
+    
+    for(int d=0; d<params.num_detectors; d++)
+    {
+      double det1[] = {-params.scanning_radius, params.det_begin - d*params.det_len};
+      double det2[] = {-params.scanning_radius, params.det_begin - (d+1)*params.det_len};
+      rotatePoint(det1, theta);
+      rotatePoint(det2, theta);
+      
+      double det_proj_interval[2];
+      projectInterval(src, det1, det2, 0, det_proj_interval);
+      
+      for(int c=0; c<params.num_pixels; c++)
+      {
+        double px_x = (c+0.5)*params.px_width - params.col_begin;
+        double cos_correction1 = src[0]/std::sqrt((det_proj_interval[0] - src[1])*(det_proj_interval[0] - src[1]) + src[0]*src[0]);
+        double cos_correction2 = src[0]/std::sqrt((det_proj_interval[1] - src[1])*(det_proj_interval[1] - src[1]) + src[0]*src[0]);
+        double cos_correction = std::abs(0.5*(cos_correction1 + cos_correction2));
+				
+        double pxb1 = (projectPoint(src, det1, px_x));
+        double pxb2 = (projectPoint(src, det2, px_x));
+        if(pxb1 > pxb2) std::swap(pxb1, pxb2);
+        
+        int px_bound1 = std::max((int)std::floor((pxb1 + params.col_begin)/params.px_width), 0);
+        int px_bound2 = std::min((int)std::ceil((pxb2 + params.col_begin)/params.px_width), params.num_pixels);
+        
+        for(int r=px_bound1; r<px_bound2; r++)
+        {
+          double px1[] = {px_x, (r)*params.px_width - params.col_begin};
+          double px2[] = {px_x, (r+1)*params.px_width - params.col_begin};
+          double px_proj_interval[2];
+          projectInterval(src, px1, px2, 0, px_proj_interval);
+          
+          if(intervalsIntersect(px_proj_interval, det_proj_interval))
+          {
+            double det_width = det_proj_interval[1] - det_proj_interval[0];
+            double det_px_overlap = std::min(det_proj_interval[1], px_proj_interval[1]) - std::max(det_proj_interval[0], px_proj_interval[0]); 
+            double weight = det_px_overlap / (det_width * cos_correction);
+            int sinogram_index = (v+1)*params.num_views - d-1;
+            int img_index = (r+1)*params.num_pixels - c-1;
+            if(swap_indices)
+              img_index = (c)*params.num_pixels + r;
+            (*sinogram)[sinogram_index] += weight * (*img)[img_index];
+          }
+        }
+      }
+    }
+  }
+}
+
 int main(int argc, const char* argv[])
 {
   bool outputAll = false;
@@ -100,78 +159,18 @@ int main(int argc, const char* argv[])
     out_file_prefix = "output/sino_phantom_";
   }
   
-  std::chrono::time_point<std::chrono::system_clock> start, end;
-  start = std::chrono::system_clock::now();
-  
-  auto params = Projection::ProjectionParameters(50.0, 55.0, sysSize, sysSize, sysSize, 10.0, fov);
-  
-  double det_len = params.detector_length/sysSize;
-  double det_begin = 0.5*params.detector_length;
-  double col_begin = params.phantom_radius;
-  double px_width = 2.0*params.phantom_radius/params.num_pixels;
-  double rotation_delta = params.field_of_view/params.num_views;
-  
+  auto params = Projection::ProjectionParameters(50.0, 55.0, sysSize, sysSize, sysSize, 10.0, fov, phase);
   int total_pixels = params.num_pixels*params.num_pixels;
   int total_detectors = params.num_detectors*params.num_views;
   std::vector<double> img(total_pixels);
   std::vector<double> sinogram(total_detectors);
   readFile(in_file_prefix + std::to_string(params.num_pixels) + ".dat", img, total_pixels);
   
-  for(int v=0; v<params.num_views; v++)
-  {
-    double theta = std::fmod(v*rotation_delta + phase, 360.0);
-    bool swap_indices = (theta > 45.0 && theta <= 135.0) || (theta > 225.0 && theta <= 315.0);
-    theta -= ((double)swap_indices)*90.0;
-
-    double src[] = {params.scanning_radius, 0.0};
-    rotatePoint(src, theta);
-    
-    for(int d=0; d<params.num_detectors; d++)
-    {
-      double det1[] = {-params.scanning_radius, det_begin - d*det_len};
-      double det2[] = {-params.scanning_radius, det_begin - (d+1)*det_len};
-      rotatePoint(det1, theta);
-      rotatePoint(det2, theta);
-      
-      double det_proj_interval[2];
-      projectInterval(src, det1, det2, 0, det_proj_interval);
-      
-      for(int c=0; c<params.num_pixels; c++)
-      {
-        double px_x = (c+0.5)*px_width - col_begin;
-        double cos_correction1 = src[0]/std::sqrt((det_proj_interval[0] - src[1])*(det_proj_interval[0] - src[1]) + src[0]*src[0]);
-        double cos_correction2 = src[0]/std::sqrt((det_proj_interval[1] - src[1])*(det_proj_interval[1] - src[1]) + src[0]*src[0]);
-        double cos_correction = std::abs(0.5*(cos_correction1 + cos_correction2));
-				
-        double pxb1 = (projectPoint(src, det1, px_x));
-        double pxb2 = (projectPoint(src, det2, px_x));
-        if(pxb1 > pxb2) std::swap(pxb1, pxb2);
-        
-        int px_bound1 = std::max((int)std::floor((pxb1 + col_begin)/px_width), 0);
-        int px_bound2 = std::min((int)std::ceil((pxb2 + col_begin)/px_width), params.num_pixels);
-        
-        for(int r=px_bound1; r<px_bound2; r++)
-        {
-          double px1[] = {px_x, (r)*px_width - col_begin};
-          double px2[] = {px_x, (r+1)*px_width - col_begin};
-          double px_proj_interval[2];
-          projectInterval(src, px1, px2, 0, px_proj_interval);
-          
-          if(intervalsIntersect(px_proj_interval, det_proj_interval))
-          {
-            double det_width = det_proj_interval[1] - det_proj_interval[0];
-            double det_px_overlap = std::min(det_proj_interval[1], px_proj_interval[1]) - std::max(det_proj_interval[0], px_proj_interval[0]); 
-            double weight = det_px_overlap / (det_width * cos_correction);
-            int sinogram_index = (v+1)*params.num_views - d-1;
-            int img_index = (r+1)*params.num_pixels - c-1;
-            if(swap_indices)
-              img_index = (c)*params.num_pixels + r;
-            sinogram[sinogram_index] += weight * img[img_index];
-          }
-        }
-      }
-    }
-  }
+  std::chrono::time_point<std::chrono::system_clock> start, end;
+  start = std::chrono::system_clock::now();
+  
+  project(params, &img, &sinogram, 0, params.num_views);
+  
   end = std::chrono::system_clock::now(); 
   std::chrono::duration<double> elapsed_seconds = end - start;
   std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
