@@ -10,6 +10,12 @@
 #include <thread>
 #include "ProjectionParameters.h"
 
+enum class ProjectionDirection
+{
+  Forward,
+  Backward
+};
+
 void printPoint(double point[], std::string prefix="", std::string suffix="")
 {
   std::cout << prefix << "(" << point[0] << "," << point[1] << ")" << suffix;
@@ -86,7 +92,7 @@ void readFile(std::string fname, std::vector<double>& vec, int size)
   fs.close();
 }
 
-void project(Projection::ProjectionParameters params, std::vector<double> *img, std::vector<double> *sinogram, int view_begin, int view_end)
+void project(Projection::ProjectionParameters params, std::vector<double> *img, std::vector<double> *sinogram, int view_begin, int view_end, ProjectionDirection projectionDirection)
 {
   for(int v=view_begin; v<view_end; v++)
   {
@@ -137,7 +143,10 @@ void project(Projection::ProjectionParameters params, std::vector<double> *img, 
             int img_index = (r+1)*params.num_pixels - c-1;
             if(swap_indices)
               img_index = (c)*params.num_pixels + r;
-            (*sinogram)[sinogram_index] += weight * (*img)[img_index];
+            if(projectionDirection == ProjectionDirection::Forward)
+              (*sinogram)[sinogram_index] += weight * (*img)[img_index];
+            else
+              (*img)[img_index] += weight * (*sinogram)[sinogram_index];
           }
         }
       }
@@ -153,11 +162,13 @@ int main(int argc, const char* argv[])
   double phase = (argc <= 3) ? 0.0 : (double)std::atof(argv[3]);
   std::string in_file_prefix = "input/unit_disc_";
   std::string out_file_prefix = "output/sino_unit_disc_";
+  std::string img_out_file_prefix = "output/img_unit_disc_";
   char input_img = (argc <= 4) ? 'u' : *argv[4];
   if(input_img == 'p')
   {
     in_file_prefix = "input/phantom_";
     out_file_prefix = "output/sino_phantom_";
+    img_out_file_prefix = "output/img_phantom_";
   }
   
   auto params = Projection::ProjectionParameters(50.0, 55.0, sysSize, sysSize, sysSize, 10.0, fov, phase);
@@ -170,10 +181,10 @@ int main(int argc, const char* argv[])
   std::chrono::time_point<std::chrono::system_clock> start, end;
   start = std::chrono::system_clock::now();
   
-  std::thread t1(project, params, &img, &sinogram, 0, params.num_views/4);
-  std::thread t2(project, params, &img, &sinogram, params.num_views/4, params.num_views/2);
-  std::thread t3(project, params, &img, &sinogram, params.num_views/2, 3*params.num_views/4);
-  std::thread t4(project, params, &img, &sinogram, 3*params.num_views/4, params.num_views);
+  std::thread t1(project, params, &img, &sinogram, 0, params.num_views/4, ProjectionDirection::Forward);
+  std::thread t2(project, params, &img, &sinogram, params.num_views/4, params.num_views/2, ProjectionDirection::Forward);
+  std::thread t3(project, params, &img, &sinogram, params.num_views/2, 3*params.num_views/4, ProjectionDirection::Forward);
+  std::thread t4(project, params, &img, &sinogram, 3*params.num_views/4, params.num_views, ProjectionDirection::Forward);
   
   t1.join();
   t2.join();
@@ -185,9 +196,30 @@ int main(int argc, const char* argv[])
   std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
   std::cout << std::setprecision(2) << std::fixed;
   
+  start = std::chrono::system_clock::now();
+  
+  std::thread u1(project, params, &img, &sinogram, 0, params.num_views/4, ProjectionDirection::Backward);
+  std::thread u2(project, params, &img, &sinogram, params.num_views/4, params.num_views/2, ProjectionDirection::Backward);
+  std::thread u3(project, params, &img, &sinogram, params.num_views/2, 3*params.num_views/4, ProjectionDirection::Backward);
+  std::thread u4(project, params, &img, &sinogram, 3*params.num_views/4, params.num_views, ProjectionDirection::Backward);
+  
+  u1.join();
+  u2.join();
+  u3.join();
+  u4.join();
+  
+  end = std::chrono::system_clock::now(); 
+  elapsed_seconds = end - start;
+  std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+  std::cout << std::setprecision(2) << std::fixed;
+  
   writePpmHeader(out_file_prefix + std::to_string(params.num_pixels) + ".ppm", params.num_detectors, params.num_views);
   double sino_max = *std::max_element(sinogram.begin(), sinogram.end());
   writePpmData(out_file_prefix + std::to_string(params.num_pixels) + ".ppm", sinogram, total_detectors, sino_max);
+  
+  writePpmHeader(img_out_file_prefix + std::to_string(params.num_pixels) + ".ppm", params.num_detectors, params.num_views);
+  double img_max = *std::max_element(img.begin(), img.end());
+  writePpmData(img_out_file_prefix + std::to_string(params.num_pixels) + ".ppm", img, total_pixels, img_max);
   
   return 0;
 }
