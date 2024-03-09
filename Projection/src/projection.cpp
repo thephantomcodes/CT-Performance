@@ -8,6 +8,7 @@
 #include <chrono>
 #include <string>
 #include <thread>
+#include <fftw3.h>
 #include "ProjectionParameters.h"
 
 enum class ProjectionDirection
@@ -62,13 +63,13 @@ void writePpmHeader(std::string ofname, int width, int height)
   ofs.close();
 }
 
-void writePpmData(std::string ofname, std::vector<double> data, int width, double max_val)
+void writePpmData(std::string ofname, std::vector<double> data, int width, double max_val, double min_val)
 {
   std::fstream ofs;
   ofs.open(ofname, std::fstream::out | std::fstream::binary | std::ios_base::app);
   for (int w = 0; w < width; ++w)
   {
-    ofs << (int)(255.0*data[w]/max_val) << '\n';
+    ofs << (int)(255.0*(data[w] - min_val)/max_val) << '\n';
   }
   ofs.close();
 }
@@ -154,10 +155,36 @@ void project(Projection::ProjectionParameters params, std::vector<double> *img, 
   }
 }
 
+void rampFilter(int N, double *in)
+{
+  fftw_complex *out;
+	out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (N/2 + 1));
+  fftw_plan fwd, inv;
+  
+  for(int i=0; i<N; i++)
+  {
+	  fwd = fftw_plan_dft_r2c_1d(N, in, out, FFTW_ESTIMATE);
+	  fftw_execute(fwd);
+	  for(int j=0; j<(N/2 + 1); j++)
+	  {
+	    double gain = (double)(j+1)/(N/2 + 1);
+	    out[j][0] *= gain;
+	    out[j][1] *= gain;
+	  }
+	  inv = fftw_plan_dft_c2r_1d(N, out, in, FFTW_ESTIMATE);
+	  fftw_execute(inv);
+    in += N;
+	}
+	
+  fftw_destroy_plan(fwd);
+  fftw_destroy_plan(inv);
+  fftw_free(out);
+}
+
 int main(int argc, const char* argv[])
 {
   bool outputAll = false;
-  int sysSize = (argc <= 1) ? 2 : std::atoi(argv[1]);
+  int sysSize = (argc <= 1) ? 128 : std::atoi(argv[1]);
   double fov = (argc <= 2) ? 180.0 : (double)std::atof(argv[2]);
   double phase = (argc <= 3) ? 0.0 : (double)std::atof(argv[3]);
   std::string in_file_prefix = "input/unit_disc_";
@@ -178,6 +205,10 @@ int main(int argc, const char* argv[])
   std::vector<double> sinogram(total_detectors);
   readFile(in_file_prefix + std::to_string(params.num_pixels) + ".dat", img, total_pixels);
   
+////////////////////////
+// Forward Projection
+////////////////////////
+  
   std::chrono::time_point<std::chrono::system_clock> start, end;
   start = std::chrono::system_clock::now();
   
@@ -194,8 +225,25 @@ int main(int argc, const char* argv[])
   end = std::chrono::system_clock::now(); 
   std::chrono::duration<double> elapsed_seconds = end - start;
   std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
-  std::cout << std::setprecision(2) << std::fixed;
   
+  writePpmHeader(out_file_prefix + std::to_string(params.num_pixels) + ".ppm", params.num_detectors, params.num_views);
+  double sino_max = *std::max_element(sinogram.begin(), sinogram.end());
+  writePpmData(out_file_prefix + std::to_string(params.num_pixels) + ".ppm", sinogram, total_detectors, sino_max, 0.0);
+  
+////////////////////////
+// Ramp Filtering
+////////////////////////
+
+  start = std::chrono::system_clock::now();
+  rampFilter(params.num_detectors, sinogram.data());
+  end = std::chrono::system_clock::now(); 
+  elapsed_seconds = end - start;
+  std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+  
+////////////////////////
+// Back Projection
+////////////////////////
+
   start = std::chrono::system_clock::now();
   
   std::thread u1(project, params, &img, &sinogram, 0, params.num_views/4, ProjectionDirection::Backward);
@@ -211,15 +259,11 @@ int main(int argc, const char* argv[])
   end = std::chrono::system_clock::now(); 
   elapsed_seconds = end - start;
   std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
-  std::cout << std::setprecision(2) << std::fixed;
-  
-  writePpmHeader(out_file_prefix + std::to_string(params.num_pixels) + ".ppm", params.num_detectors, params.num_views);
-  double sino_max = *std::max_element(sinogram.begin(), sinogram.end());
-  writePpmData(out_file_prefix + std::to_string(params.num_pixels) + ".ppm", sinogram, total_detectors, sino_max);
   
   writePpmHeader(img_out_file_prefix + std::to_string(params.num_pixels) + ".ppm", params.num_detectors, params.num_views);
   double img_max = *std::max_element(img.begin(), img.end());
-  writePpmData(img_out_file_prefix + std::to_string(params.num_pixels) + ".ppm", img, total_pixels, img_max);
+  double img_min = *std::min_element(img.begin(), img.end());
+  writePpmData(img_out_file_prefix + std::to_string(params.num_pixels) + ".ppm", img, total_pixels, img_max, img_min);
   
   return 0;
 }

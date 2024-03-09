@@ -20,3 +20,4 @@ include_directories("${CMAKE_SOURCE_DIR}/src"
 
 add_executable(projection.o ${SOURCES} ${HEADERS})
 target_link_libraries(projection.o Threads::Threads)
+target_link_libraries(projection.o fftw3)
