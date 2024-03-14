@@ -1,6 +1,0 @@
-Row Sums Size: 262144
-Row Sum Total: 9.95297e+07 
-Col Sums Size: 262144
-Col Sum Total: 9.95297e+07 
-Grand total: 9.95297e+07
-
