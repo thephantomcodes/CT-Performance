@@ -11,11 +11,40 @@
 #include <fftw3.h>
 #include "ProjectionParameters.h"
 
+#define GEN_SART_WEIGHTS
+
+std::vector<double> row_sums;
+std::vector<double> col_sums;
+double grand_total = 0;
+
 enum class ProjectionDirection
 {
   Forward,
   Backward
 };
+
+void printSums()
+{
+  double row_sum_total = 0.0;
+  double col_sum_total = 0.0;
+
+  std::cout << "Row Sums Size: " << row_sums.size() << "\n";
+  for(auto row_sum : row_sums)
+  {
+    // std::cout << row_sum << " ";
+    row_sum_total += row_sum;
+  }
+  std::cout << "Row Sum Total: " << row_sum_total << " " << std::endl;
+  
+  std::cout << "Col Sums Size: " << col_sums.size() << "\n";
+  for(auto  col_sum : col_sums)
+  {
+    col_sum_total += col_sum;
+  }
+  std::cout << "Col Sum Total: " << col_sum_total << " " << std::endl;
+  
+  std::cout << "Grand Total: " << grand_total << "\n" << std::endl;
+}
 
 void printPoint(double point[], std::string prefix="", std::string suffix="")
 {
@@ -140,7 +169,7 @@ void project(Projection::ProjectionParameters params, std::vector<double> *img, 
             double det_width = det_proj_interval[1] - det_proj_interval[0];
             double det_px_overlap = std::min(det_proj_interval[1], px_proj_interval[1]) - std::max(det_proj_interval[0], px_proj_interval[0]); 
             double weight = det_px_overlap / (det_width * cos_correction);
-            int sinogram_index = (v+1)*params.num_views - d-1;
+            int sinogram_index = (v+1)*params.num_detectors - d-1;
             int img_index = (r+1)*params.num_pixels - c-1;
             if(swap_indices)
               img_index = (c)*params.num_pixels + r;
@@ -148,6 +177,15 @@ void project(Projection::ProjectionParameters params, std::vector<double> *img, 
               (*sinogram)[sinogram_index] += weight * (*img)[img_index];
             else
               (*img)[img_index] += weight * (*sinogram)[sinogram_index];
+            
+            #ifdef GEN_SART_WEIGHTS
+            if(projectionDirection == ProjectionDirection::Forward)
+            {
+              row_sums[sinogram_index] += weight;
+              col_sums[img_index] += weight;
+              grand_total += weight;
+            }
+            #endif
           }
         }
       }
@@ -173,11 +211,11 @@ void rampFilter(int N, double *in)
 	  }
 	  inv = fftw_plan_dft_c2r_1d(N, out, in, FFTW_ESTIMATE);
 	  fftw_execute(inv);
+    fftw_destroy_plan(fwd);
+    fftw_destroy_plan(inv);
     in += N;
 	}
 	
-  fftw_destroy_plan(fwd);
-  fftw_destroy_plan(inv);
   fftw_free(out);
 }
 
@@ -203,7 +241,16 @@ int main(int argc, const char* argv[])
   int total_detectors = params.num_detectors*params.num_views;
   std::vector<double> img(total_pixels);
   std::vector<double> sinogram(total_detectors);
-  readFile(in_file_prefix + std::to_string(params.num_pixels) + ".dat", img, total_pixels);
+//  readFile(in_file_prefix + std::to_string(params.num_pixels) + ".dat", img, total_pixels);
+
+  col_sums.resize(total_pixels);
+  row_sums.resize(total_detectors);
+
+#ifdef GEN_SART_WEIGHTS
+  project(params, &img, &sinogram, 0, params.num_views, ProjectionDirection::Forward);
+  printSums();
+  return 0;
+#endif
   
 ////////////////////////
 // Forward Projection
