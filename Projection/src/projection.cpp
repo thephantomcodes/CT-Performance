@@ -43,7 +43,19 @@ void printSums()
   }
   std::cout << "Col Sum Total: " << col_sum_total << " " << std::endl;
   
-  std::cout << "Grand Total: " << grand_total << "\n" << std::endl;
+  std::cout << "Grand Total: " << grand_total << std::endl;
+  std::cout << "Row Diff: " << row_sum_total - grand_total << std::endl;
+  std::cout << "Col Diff: " << col_sum_total - grand_total << std::endl;
+}
+
+void writeWeightData(std::string ofname)
+{
+  std::fstream ofs;
+  ofs.open(ofname, std::fstream::out | std::fstream::binary);
+  ofs << grand_total;
+  for(auto row_sum : row_sums) ofs << row_sum;
+  for(auto col_sum : col_sums) ofs << col_sum;
+  ofs.close();
 }
 
 void printPoint(double point[], std::string prefix="", std::string suffix="")
@@ -228,6 +240,7 @@ int main(int argc, const char* argv[])
   std::string in_file_prefix = "input/unit_disc_";
   std::string out_file_prefix = "output/sino_unit_disc_";
   std::string img_out_file_prefix = "output/img_unit_disc_";
+  std::string sart_weight_prefix = "sart_weights/sart_weight_";
   char input_img = (argc <= 4) ? 'u' : *argv[4];
   if(input_img == 'p')
   {
@@ -249,6 +262,13 @@ int main(int argc, const char* argv[])
 #ifdef GEN_SART_WEIGHTS
   project(params, &img, &sinogram, 0, params.num_views, ProjectionDirection::Forward);
   printSums();
+  sart_weight_prefix
+    .append(std::to_string(params.num_pixels))
+    .append("_")
+    .append(std::to_string((int)params.field_of_view))
+    .append(".dat");
+  std::cout << sart_weight_prefix << "\n";
+  writeWeightData(sart_weight_prefix);
   return 0;
 #endif
   
