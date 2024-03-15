@@ -254,7 +254,12 @@ int main(int argc, const char* argv[])
   int total_detectors = params.num_detectors*params.num_views;
   std::vector<double> img(total_pixels);
   std::vector<double> sinogram(total_detectors);
-//  readFile(in_file_prefix + std::to_string(params.num_pixels) + ".dat", img, total_pixels);
+  readFile(in_file_prefix + std::to_string(params.num_pixels) + ".dat", img, total_pixels);
+  sart_weight_prefix
+    .append(std::to_string(params.num_pixels))
+    .append("_")
+    .append(std::to_string((int)params.field_of_view))
+    .append(".dat");
 
   col_sums.resize(total_pixels);
   row_sums.resize(total_detectors);
@@ -262,12 +267,6 @@ int main(int argc, const char* argv[])
 #ifdef GEN_SART_WEIGHTS
   project(params, &img, &sinogram, 0, params.num_views, ProjectionDirection::Forward);
   printSums();
-  sart_weight_prefix
-    .append(std::to_string(params.num_pixels))
-    .append("_")
-    .append(std::to_string((int)params.field_of_view))
-    .append(".dat");
-  std::cout << sart_weight_prefix << "\n";
   writeWeightData(sart_weight_prefix);
   return 0;
 #endif
