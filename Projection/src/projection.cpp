@@ -8,92 +8,46 @@
 #include <chrono>
 #include <string>
 #include <thread>
-#include <fftw3.h>
 #include "ProjectionParameters.h"
 
-#undef GEN_SART_WEIGHTS
-
-std::vector<double> row_sums;
-std::vector<double> col_sums;
-double grand_total = 0;
-
-enum class ProjectionDirection
-{
-  Forward,
-  Backward
-};
-
-void printSums()
+void printSums(Projection::ProjectionParameters& params)
 {
   double row_sum_total = 0.0;
   double col_sum_total = 0.0;
 
-  std::cout << "Row Sums Size: " << row_sums.size() << "\n";
-  for(auto row_sum : row_sums)
+  std::cout << "Row Sums Size: " << params.row_sums.size() << "\n";
+  for(auto row_sum : params.row_sums)
   {
     // std::cout << row_sum << " ";
     row_sum_total += row_sum;
   }
   std::cout << "Row Sum Total: " << row_sum_total << " " << std::endl;
   
-  std::cout << "Col Sums Size: " << col_sums.size() << "\n";
-  for(auto  col_sum : col_sums)
+  std::cout << "Col Sums Size: " << params.col_sums.size() << "\n";
+  for(auto  col_sum : params.col_sums)
   {
     col_sum_total += col_sum;
   }
   std::cout << "Col Sum Total: " << col_sum_total << " " << std::endl;
   
-  std::cout << "Grand Total: " << grand_total << std::endl;
-  std::cout << "Row Diff: " << row_sum_total - grand_total << std::endl;
-  std::cout << "Col Diff: " << col_sum_total - grand_total << std::endl;
+  std::cout << "Grand Total: " << params.grand_total << std::endl;
+  std::cout << "Row Diff: " << row_sum_total - params.grand_total << std::endl;
+  std::cout << "Col Diff: " << col_sum_total - params.grand_total << std::endl;
 }
 
-void writeWeightData(std::string ofname)
+void writeWeightData(std::string ofname, Projection::ProjectionParameters& params)
 {
   std::fstream ofs;
   ofs.open(ofname, std::fstream::out | std::fstream::binary);
-  ofs << grand_total;
-  for(auto row_sum : row_sums) ofs << row_sum;
-  for(auto col_sum : col_sums) ofs << col_sum;
+  ofs << params.grand_total;
+  for(auto row_sum : params.row_sums) ofs << row_sum;
+  for(auto col_sum : params.col_sums) ofs << col_sum;
   ofs.close();
 }
 
 void printPoint(double point[], std::string prefix="", std::string suffix="")
 {
   std::cout << prefix << "(" << point[0] << "," << point[1] << ")" << suffix;
-}
-
-double projectPoint(double src[2], double pt[2], double x)
-{
-  if(src[0] == pt[0]) return pt[0];
-  
-  double m = (src[1] - pt[1]) / (src[0] - pt[0]);
-  double b = pt[1] - m*pt[0];
-  return m*x + b;
-}
-
-void projectInterval(double src[2], double pt1[2], double pt2[2], double x, double interval[2])
-{
-  interval[0] = projectPoint(src, pt1, x);
-  interval[1] = projectPoint(src, pt2, x);
-  if(interval[0] > interval[1])
-    std::swap(interval[0], interval[1]);
-}
-
-bool intervalsIntersect(double interval1[2], double interval2[2])
-{
-  return interval1[0] < interval2[1] && interval2[0] < interval1[1];
-}
-
-void rotatePoint(double point[2], double theta)
-{
-  theta = 3.14159*theta/180.0;
-  double point_copy[2] = {point[0], point[1]};
-  double vec[2] = {cos(theta) , -sin(theta)};
-  point[0] = point_copy[0]*vec[0] + point_copy[1]*vec[1];
-  vec[0] = sin(theta);
-  vec[1] = cos(theta);
-  point[1] = point_copy[0]*vec[0] + point_copy[1]*vec[1];
 }
 
 void writePpmHeader(std::string ofname, int width, int height)
@@ -110,7 +64,7 @@ void writePpmData(std::string ofname, std::vector<double> data, int width, doubl
   ofs.open(ofname, std::fstream::out | std::fstream::binary | std::ios_base::app);
   for (int w = 0; w < width; ++w)
   {
-    ofs << (int)(255.0*(data[w] - min_val)/max_val) << '\n';
+    ofs << (int)(255.0*(data[w] - min_val)/(max_val - min_val)) << '\n';
   }
   ofs.close();
 }
@@ -132,103 +86,6 @@ void readFile(std::string fname, std::vector<double>& vec, int size)
     vec[i] = buffer;
   }
   fs.close();
-}
-
-void project(Projection::ProjectionParameters params, std::vector<double> *img, std::vector<double> *sinogram, int view_begin, int view_end, ProjectionDirection projectionDirection)
-{
-  for(int v=view_begin; v<view_end; v++)
-  {
-    double theta = std::fmod(v*params.rotation_delta + params.phase, 360.0);
-    bool swap_indices = (theta > 45.0 && theta <= 135.0) || (theta > 225.0 && theta <= 315.0);
-    theta -= ((double)swap_indices)*90.0;
-
-    double src[] = {params.scanning_radius, 0.0};
-    rotatePoint(src, theta);
-    
-    for(int d=0; d<params.num_detectors; d++)
-    {
-      double det1[] = {-params.scanning_radius, params.det_begin - d*params.det_len};
-      double det2[] = {-params.scanning_radius, params.det_begin - (d+1)*params.det_len};
-      rotatePoint(det1, theta);
-      rotatePoint(det2, theta);
-      
-      double det_proj_interval[2];
-      projectInterval(src, det1, det2, 0, det_proj_interval);
-      
-      for(int c=0; c<params.num_pixels; c++)
-      {
-        double px_x = (c+0.5)*params.px_width - params.col_begin;
-        double cos_correction1 = src[0]/std::sqrt((det_proj_interval[0] - src[1])*(det_proj_interval[0] - src[1]) + src[0]*src[0]);
-        double cos_correction2 = src[0]/std::sqrt((det_proj_interval[1] - src[1])*(det_proj_interval[1] - src[1]) + src[0]*src[0]);
-        double cos_correction = std::abs(0.5*(cos_correction1 + cos_correction2));
-				
-        double pxb1 = (projectPoint(src, det1, px_x));
-        double pxb2 = (projectPoint(src, det2, px_x));
-        if(pxb1 > pxb2) std::swap(pxb1, pxb2);
-        
-        int px_bound1 = std::max((int)std::floor((pxb1 + params.col_begin)/params.px_width), 0);
-        int px_bound2 = std::min((int)std::ceil((pxb2 + params.col_begin)/params.px_width), params.num_pixels);
-        
-        for(int r=px_bound1; r<px_bound2; r++)
-        {
-          double px1[] = {px_x, (r)*params.px_width - params.col_begin};
-          double px2[] = {px_x, (r+1)*params.px_width - params.col_begin};
-          double px_proj_interval[2];
-          projectInterval(src, px1, px2, 0, px_proj_interval);
-          
-          if(intervalsIntersect(px_proj_interval, det_proj_interval))
-          {
-            double det_width = det_proj_interval[1] - det_proj_interval[0];
-            double det_px_overlap = std::min(det_proj_interval[1], px_proj_interval[1]) - std::max(det_proj_interval[0], px_proj_interval[0]); 
-            double weight = det_px_overlap / (det_width * cos_correction);
-            int sinogram_index = (v+1)*params.num_detectors - d-1;
-            int img_index = (r+1)*params.num_pixels - c-1;
-            if(swap_indices)
-              img_index = (c)*params.num_pixels + r;
-            if(projectionDirection == ProjectionDirection::Forward)
-              (*sinogram)[sinogram_index] += weight * (*img)[img_index];
-            else
-              (*img)[img_index] += weight * (*sinogram)[sinogram_index];
-            
-            #ifdef GEN_SART_WEIGHTS
-            if(projectionDirection == ProjectionDirection::Forward)
-            {
-              row_sums[sinogram_index] += weight;
-              col_sums[img_index] += weight;
-              grand_total += weight;
-            }
-            #endif
-          }
-        }
-      }
-    }
-  }
-}
-
-void rampFilter(int N, double *in)
-{
-  fftw_complex *out;
-	out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (N/2 + 1));
-  fftw_plan fwd, inv;
-  
-  for(int i=0; i<N; i++)
-  {
-	  fwd = fftw_plan_dft_r2c_1d(N, in, out, FFTW_ESTIMATE);
-	  fftw_execute(fwd);
-	  for(int j=0; j<(N/2 + 1); j++)
-	  {
-	    double gain = (double)(j+1)/(N/2 + 1);
-	    out[j][0] *= gain;
-	    out[j][1] *= gain;
-	  }
-	  inv = fftw_plan_dft_c2r_1d(N, out, in, FFTW_ESTIMATE);
-	  fftw_execute(inv);
-    fftw_destroy_plan(fwd);
-    fftw_destroy_plan(inv);
-    in += N;
-	}
-	
-  fftw_free(out);
 }
 
 int main(int argc, const char* argv[])
@@ -261,13 +118,10 @@ int main(int argc, const char* argv[])
     .append(std::to_string((int)params.field_of_view))
     .append(".dat");
 
-  col_sums.resize(total_pixels);
-  row_sums.resize(total_detectors);
-
 #ifdef GEN_SART_WEIGHTS
-  project(params, &img, &sinogram, 0, params.num_views, ProjectionDirection::Forward);
-  printSums();
-  writeWeightData(sart_weight_prefix);
+  params.project(&img, &sinogram, 0, params.num_views, Projection::ProjectionDirection::Forward);
+  printSums(params);
+  writeWeightData(sart_weight_prefix, params);
   return 0;
 #endif
   
@@ -278,10 +132,10 @@ int main(int argc, const char* argv[])
   std::chrono::time_point<std::chrono::system_clock> start, end;
   start = std::chrono::system_clock::now();
   
-  std::thread t1(project, params, &img, &sinogram, 0, params.num_views/4, ProjectionDirection::Forward);
-  std::thread t2(project, params, &img, &sinogram, params.num_views/4, params.num_views/2, ProjectionDirection::Forward);
-  std::thread t3(project, params, &img, &sinogram, params.num_views/2, 3*params.num_views/4, ProjectionDirection::Forward);
-  std::thread t4(project, params, &img, &sinogram, 3*params.num_views/4, params.num_views, ProjectionDirection::Forward);
+  std::thread t1(&Projection::ProjectionParameters::project, params, &img, &sinogram, 0, params.num_views/4, Projection::ProjectionDirection::Forward);
+  std::thread t2(&Projection::ProjectionParameters::project, params, &img, &sinogram, params.num_views/4, params.num_views/2, Projection::ProjectionDirection::Forward);
+  std::thread t3(&Projection::ProjectionParameters::project, params, &img, &sinogram, params.num_views/2, 3*params.num_views/4, Projection::ProjectionDirection::Forward);
+  std::thread t4(&Projection::ProjectionParameters::project, params, &img, &sinogram, 3*params.num_views/4, params.num_views, Projection::ProjectionDirection::Forward);
   
   t1.join();
   t2.join();
@@ -301,7 +155,7 @@ int main(int argc, const char* argv[])
 ////////////////////////
 
   start = std::chrono::system_clock::now();
-  rampFilter(params.num_detectors, sinogram.data());
+  params.rampFilter(params.num_detectors, sinogram.data());
   end = std::chrono::system_clock::now(); 
   elapsed_seconds = end - start;
   std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
@@ -312,10 +166,10 @@ int main(int argc, const char* argv[])
 
   start = std::chrono::system_clock::now();
   
-  std::thread u1(project, params, &img, &sinogram, 0, params.num_views/4, ProjectionDirection::Backward);
-  std::thread u2(project, params, &img, &sinogram, params.num_views/4, params.num_views/2, ProjectionDirection::Backward);
-  std::thread u3(project, params, &img, &sinogram, params.num_views/2, 3*params.num_views/4, ProjectionDirection::Backward);
-  std::thread u4(project, params, &img, &sinogram, 3*params.num_views/4, params.num_views, ProjectionDirection::Backward);
+  std::thread u1(&Projection::ProjectionParameters::project, params, &img, &sinogram, 0, params.num_views/4, Projection::ProjectionDirection::Backward);
+  std::thread u2(&Projection::ProjectionParameters::project, params, &img, &sinogram, params.num_views/4, params.num_views/2, Projection::ProjectionDirection::Backward);
+  std::thread u3(&Projection::ProjectionParameters::project, params, &img, &sinogram, params.num_views/2, 3*params.num_views/4, Projection::ProjectionDirection::Backward);
+  std::thread u4(&Projection::ProjectionParameters::project, params, &img, &sinogram, 3*params.num_views/4, params.num_views, Projection::ProjectionDirection::Backward);
   
   u1.join();
   u2.join();
