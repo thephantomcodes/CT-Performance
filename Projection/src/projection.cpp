@@ -11,7 +11,7 @@
 #include <fftw3.h>
 #include "ProjectionParameters.h"
 
-#define GEN_SART_WEIGHTS
+#undef GEN_SART_WEIGHTS
 
 std::vector<double> row_sums;
 std::vector<double> col_sums;
