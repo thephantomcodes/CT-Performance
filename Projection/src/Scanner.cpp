@@ -1,11 +1,11 @@
-#include "ProjectionParameters.h"
+#include "Scanner.h"
 #include <iostream>
 #include <cmath>
 #include <fftw3.h>
 
-namespace Projection
+namespace CT
 {
-	ProjectionParameters::ProjectionParameters(double scanning_radius_, double detector_length_, int num_pixels_, int num_views_, int num_detectors_, double phantom_radius_, double field_of_view_, double phase_)
+	Scanner::Scanner(double scanning_radius_, double detector_length_, int num_pixels_, int num_views_, int num_detectors_, double phantom_radius_, double field_of_view_, double phase_)
     : scanning_radius(scanning_radius_)
     , detector_length(detector_length_)
     , num_pixels(num_pixels_)
@@ -24,7 +24,7 @@ namespace Projection
     row_sums.resize(num_detectors*num_views);
   }
   
-  void ProjectionParameters::PrintProjectionParameters()
+  void Scanner::PrintProjectionParameters()
   {
     std::cout << "scanning_radius: " << scanning_radius << '\n'
       << "detector_length: " << detector_length << '\n'
@@ -35,7 +35,7 @@ namespace Projection
       << "field_of_view: " << field_of_view << std::endl;
   }
 
-  double ProjectionParameters::projectPoint(double src[2], double pt[2], double x)
+  double Scanner::projectPoint(double src[2], double pt[2], double x)
   {
     if(src[0] == pt[0]) return pt[0];
     
@@ -44,7 +44,7 @@ namespace Projection
     return m*x + b;
   }
 
-  void ProjectionParameters::projectInterval(double src[2], double pt1[2], double pt2[2], double x, double interval[2])
+  void Scanner::projectInterval(double src[2], double pt1[2], double pt2[2], double x, double interval[2])
   {
     interval[0] = projectPoint(src, pt1, x);
     interval[1] = projectPoint(src, pt2, x);
@@ -52,12 +52,12 @@ namespace Projection
       std::swap(interval[0], interval[1]);
   }
 
-  bool ProjectionParameters::intervalsIntersect(double interval1[2], double interval2[2])
+  bool Scanner::intervalsIntersect(double interval1[2], double interval2[2])
   {
     return interval1[0] < interval2[1] && interval2[0] < interval1[1];
   }
 
-  void ProjectionParameters::rotatePoint(double point[2], double theta)
+  void Scanner::rotatePoint(double point[2], double theta)
   {
     theta = 3.14159*theta/180.0;
     double point_copy[2] = {point[0], point[1]};
@@ -68,7 +68,7 @@ namespace Projection
     point[1] = point_copy[0]*vec[0] + point_copy[1]*vec[1];
   }
 
-  void ProjectionParameters::project(std::vector<double> *img, std::vector<double> *sinogram, int view_begin, int view_end, ProjectionDirection projectionDirection)
+  void Scanner::project(std::vector<double> *img, std::vector<double> *sinogram, int view_begin, int view_end, ProjectionDirection projectionDirection)
   {
     for(int v=view_begin; v<view_end; v++)
     {
@@ -139,7 +139,7 @@ namespace Projection
     }
   }
 
-  void ProjectionParameters::rampFilter(int N, double *in)
+  void Scanner::rampFilter(int N, double *in)
   {
     fftw_complex *out;
     out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (N/2 + 1));

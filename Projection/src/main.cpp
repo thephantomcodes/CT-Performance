@@ -8,9 +8,9 @@
 #include <chrono>
 #include <string>
 #include <thread>
-#include "ProjectionParameters.h"
+#include "Scanner.h"
 
-void printSums(Projection::ProjectionParameters& params)
+void printSums(CT::Scanner& params)
 {
   double row_sum_total = 0.0;
   double col_sum_total = 0.0;
@@ -35,7 +35,7 @@ void printSums(Projection::ProjectionParameters& params)
   std::cout << "Col Diff: " << col_sum_total - params.grand_total << std::endl;
 }
 
-void writeWeightData(std::string ofname, Projection::ProjectionParameters& params)
+void writeWeightData(std::string ofname, CT::Scanner& params)
 {
   std::fstream ofs;
   ofs.open(ofname, std::fstream::out | std::fstream::binary);
@@ -92,13 +92,12 @@ int main(int argc, const char* argv[])
 {
   bool outputAll = false;
   int sysSize = (argc <= 1) ? 128 : std::atoi(argv[1]);
-  double fov = (argc <= 2) ? 180.0 : (double)std::atof(argv[2]);
-  double phase = (argc <= 3) ? 0.0 : (double)std::atof(argv[3]);
+  double fov = (argc <= 2) ? 360.0 : (double)std::atof(argv[2]);
+  char input_img = (argc <= 3) ? 'u' : *argv[3];
   std::string in_file_prefix = "input/unit_disc_";
   std::string out_file_prefix = "output/sino_unit_disc_";
   std::string img_out_file_prefix = "output/img_unit_disc_";
   std::string sart_weight_prefix = "sart_weights/sart_weight_";
-  char input_img = (argc <= 4) ? 'u' : *argv[4];
   if(input_img == 'p')
   {
     in_file_prefix = "input/phantom_";
@@ -106,7 +105,7 @@ int main(int argc, const char* argv[])
     img_out_file_prefix = "output/img_phantom_";
   }
   
-  auto params = Projection::ProjectionParameters(50.0, 55.0, sysSize, sysSize, sysSize, 10.0, fov, phase);
+  auto params = CT::Scanner(50.0, 55.0, sysSize, sysSize, sysSize, 10.0, fov, 0.0);
   int total_pixels = params.num_pixels*params.num_pixels;
   int total_detectors = params.num_detectors*params.num_views;
   std::vector<double> img(total_pixels);
@@ -119,7 +118,7 @@ int main(int argc, const char* argv[])
     .append(".dat");
 
 #ifdef GEN_SART_WEIGHTS
-  params.project(&img, &sinogram, 0, params.num_views, Projection::ProjectionDirection::Forward);
+  params.project(&img, &sinogram, 0, params.num_views, CT::ProjectionDirection::Forward);
   printSums(params);
   writeWeightData(sart_weight_prefix, params);
   return 0;
@@ -132,10 +131,10 @@ int main(int argc, const char* argv[])
   std::chrono::time_point<std::chrono::system_clock> start, end;
   start = std::chrono::system_clock::now();
   
-  std::thread t1(&Projection::ProjectionParameters::project, params, &img, &sinogram, 0, params.num_views/4, Projection::ProjectionDirection::Forward);
-  std::thread t2(&Projection::ProjectionParameters::project, params, &img, &sinogram, params.num_views/4, params.num_views/2, Projection::ProjectionDirection::Forward);
-  std::thread t3(&Projection::ProjectionParameters::project, params, &img, &sinogram, params.num_views/2, 3*params.num_views/4, Projection::ProjectionDirection::Forward);
-  std::thread t4(&Projection::ProjectionParameters::project, params, &img, &sinogram, 3*params.num_views/4, params.num_views, Projection::ProjectionDirection::Forward);
+  std::thread t1(&CT::Scanner::project, params, &img, &sinogram, 0, params.num_views/4, CT::ProjectionDirection::Forward);
+  std::thread t2(&CT::Scanner::project, params, &img, &sinogram, params.num_views/4, params.num_views/2, CT::ProjectionDirection::Forward);
+  std::thread t3(&CT::Scanner::project, params, &img, &sinogram, params.num_views/2, 3*params.num_views/4, CT::ProjectionDirection::Forward);
+  std::thread t4(&CT::Scanner::project, params, &img, &sinogram, 3*params.num_views/4, params.num_views, CT::ProjectionDirection::Forward);
   
   t1.join();
   t2.join();
@@ -166,10 +165,10 @@ int main(int argc, const char* argv[])
 
   start = std::chrono::system_clock::now();
   
-  std::thread u1(&Projection::ProjectionParameters::project, params, &img, &sinogram, 0, params.num_views/4, Projection::ProjectionDirection::Backward);
-  std::thread u2(&Projection::ProjectionParameters::project, params, &img, &sinogram, params.num_views/4, params.num_views/2, Projection::ProjectionDirection::Backward);
-  std::thread u3(&Projection::ProjectionParameters::project, params, &img, &sinogram, params.num_views/2, 3*params.num_views/4, Projection::ProjectionDirection::Backward);
-  std::thread u4(&Projection::ProjectionParameters::project, params, &img, &sinogram, 3*params.num_views/4, params.num_views, Projection::ProjectionDirection::Backward);
+  std::thread u1(&CT::Scanner::project, params, &img, &sinogram, 0, params.num_views/4, CT::ProjectionDirection::Backward);
+  std::thread u2(&CT::Scanner::project, params, &img, &sinogram, params.num_views/4, params.num_views/2, CT::ProjectionDirection::Backward);
+  std::thread u3(&CT::Scanner::project, params, &img, &sinogram, params.num_views/2, 3*params.num_views/4, CT::ProjectionDirection::Backward);
+  std::thread u4(&CT::Scanner::project, params, &img, &sinogram, 3*params.num_views/4, params.num_views, CT::ProjectionDirection::Backward);
   
   u1.join();
   u2.join();

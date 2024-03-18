@@ -14,7 +14,7 @@
 
 #undef GEN_SART_WEIGHTS
 
-namespace Projection
+namespace CT
 {
   enum class ProjectionDirection
   {
@@ -22,10 +22,17 @@ namespace Projection
     Backward
   };
 
-  class ProjectionParameters
+  class Scanner
   {
     public:
-			ProjectionParameters(double scanning_radius_, double detector_length_, int num_pixels_, int num_views_, int num_detectors_, double phantom_radius_, double field_of_view_, double phase_);
+			Scanner(double scanning_radius_
+        , double detector_length_
+        , int num_pixels_
+        , int num_views_
+        , int num_detectors_
+        , double phantom_radius_
+        , double field_of_view_
+        , double phase_);
       
       const double scanning_radius;
       const double detector_length;
