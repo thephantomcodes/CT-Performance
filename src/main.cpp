@@ -116,6 +116,26 @@ void readSumFile(std::string fname, CT::Scanner &scanner)
   fs.close();
 }
 
+void project(CT::Scanner& scanner, std::vector<double> *img, std::vector<double> *sinogram, CT::ProjectionDirection projectionDirection)
+{
+  std::chrono::time_point<std::chrono::system_clock> start, end;
+  start = std::chrono::system_clock::now();
+  
+  std::thread t1(&CT::Scanner::project, scanner, img, sinogram, 0, scanner.num_views/4, projectionDirection);
+  std::thread t2(&CT::Scanner::project, scanner, img, sinogram, scanner.num_views/4, scanner.num_views/2, projectionDirection);
+  std::thread t3(&CT::Scanner::project, scanner, img, sinogram, scanner.num_views/2, 3*scanner.num_views/4, projectionDirection);
+  std::thread t4(&CT::Scanner::project, scanner, img, sinogram, 3*scanner.num_views/4, scanner.num_views, projectionDirection);
+  
+  t1.join();
+  t2.join();
+  t3.join();
+  t4.join();
+  
+  end = std::chrono::system_clock::now(); 
+  std::chrono::duration<double> elapsed_seconds = end - start;
+  std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+}
+
 int main(int argc, const char* argv[])
 {
   int sysSize = (argc <= 1) ? 128 : std::atoi(argv[1]);
@@ -152,33 +172,17 @@ int main(int argc, const char* argv[])
   scanner.project(&img, &sinogram, 0, scanner.num_views, CT::ProjectionDirection::Forward);
   printSums(scanner);
   writeWeightData(sart_weight_prefix, scanner);
-  std::cout << "GT " << scanner.grand_total << " RS " << scanner.row_sums[0] << " CS " << scanner.col_sums[0] << "\n";
   return 0;
 #endif
 
   readSumFile(sart_weight_prefix, scanner);
-  std::cout << "GT " << scanner.grand_total << " RS " << scanner.row_sums[0] << " CS " << scanner.col_sums[0] << "\n";
+  // printSums(scanner);
   
 ////////////////////////
 // Forward Projection
 ////////////////////////
   
-  std::chrono::time_point<std::chrono::system_clock> start, end;
-  start = std::chrono::system_clock::now();
-  
-  std::thread t1(&CT::Scanner::project, scanner, &img, &sinogram, 0, scanner.num_views/4, CT::ProjectionDirection::Forward);
-  std::thread t2(&CT::Scanner::project, scanner, &img, &sinogram, scanner.num_views/4, scanner.num_views/2, CT::ProjectionDirection::Forward);
-  std::thread t3(&CT::Scanner::project, scanner, &img, &sinogram, scanner.num_views/2, 3*scanner.num_views/4, CT::ProjectionDirection::Forward);
-  std::thread t4(&CT::Scanner::project, scanner, &img, &sinogram, 3*scanner.num_views/4, scanner.num_views, CT::ProjectionDirection::Forward);
-  
-  t1.join();
-  t2.join();
-  t3.join();
-  t4.join();
-  
-  end = std::chrono::system_clock::now(); 
-  std::chrono::duration<double> elapsed_seconds = end - start;
-  std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+  project(scanner, &img, &sinogram, CT::ProjectionDirection::Forward);
   
   writePpmHeader(out_file_prefix + std::to_string(scanner.num_pixels) + ".ppm", scanner.num_detectors, scanner.num_views);
   double sino_max = *std::max_element(sinogram.begin(), sinogram.end());
@@ -187,6 +191,9 @@ int main(int argc, const char* argv[])
 ////////////////////////
 // Ramp Filtering
 ////////////////////////
+
+  std::chrono::time_point<std::chrono::system_clock> start, end;
+  std::chrono::duration<double> elapsed_seconds;
 
   if(operation == 'f')
   {
@@ -203,27 +210,25 @@ int main(int argc, const char* argv[])
 
   if(operation == 'f' || operation == 'b')
   {
-    start = std::chrono::system_clock::now();
-    
-    std::thread u1(&CT::Scanner::project, scanner, &img, &sinogram, 0, scanner.num_views/4, CT::ProjectionDirection::Backward);
-    std::thread u2(&CT::Scanner::project, scanner, &img, &sinogram, scanner.num_views/4, scanner.num_views/2, CT::ProjectionDirection::Backward);
-    std::thread u3(&CT::Scanner::project, scanner, &img, &sinogram, scanner.num_views/2, 3*scanner.num_views/4, CT::ProjectionDirection::Backward);
-    std::thread u4(&CT::Scanner::project, scanner, &img, &sinogram, 3*scanner.num_views/4, scanner.num_views, CT::ProjectionDirection::Backward);
-    
-    u1.join();
-    u2.join();
-    u3.join();
-    u4.join();
-    
-    end = std::chrono::system_clock::now(); 
-    elapsed_seconds = end - start;
-    std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+    project(scanner, &img, &sinogram, CT::ProjectionDirection::Backward);
     
     writePpmHeader(img_out_file_prefix + std::to_string(scanner.num_pixels) + ".ppm", scanner.num_detectors, scanner.num_views);
     double img_max = *std::max_element(img.begin(), img.end());
     double img_min = *std::min_element(img.begin(), img.end());
     writePpmData(img_out_file_prefix + std::to_string(scanner.num_pixels) + ".ppm", img, total_pixels, img_max, img_min);
   }
+
+////////////////////////
+// SART
+////////////////////////
   
+  if(operation == 's')
+  {
+    std::vector<double> sinogram_error;
+    sinogram_error.reserve(total_detectors);
+    std::fill(img.begin(), img.end(), 0.0); 
+
+  }
+
   return 0;
 }
