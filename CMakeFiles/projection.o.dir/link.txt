@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/projection.o.dir/src/Scanner.cpp.o CMakeFiles/projection.o.dir/src/main.cpp.o  -o projection.o -lfftw3 -lpthread 
