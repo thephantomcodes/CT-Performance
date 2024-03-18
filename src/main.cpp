@@ -153,11 +153,11 @@ int main(int argc, const char* argv[])
 // Ramp Filtering
 ////////////////////////
 
-  start = std::chrono::system_clock::now();
-  params.rampFilter(params.num_detectors, sinogram.data());
-  end = std::chrono::system_clock::now(); 
-  elapsed_seconds = end - start;
-  std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+  // start = std::chrono::system_clock::now();
+  // params.rampFilter(params.num_detectors, sinogram.data());
+  // end = std::chrono::system_clock::now(); 
+  // elapsed_seconds = end - start;
+  // std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
   
 ////////////////////////
 // Back Projection
