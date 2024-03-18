@@ -105,13 +105,13 @@ void readSumFile(std::string fname, CT::Scanner &scanner)
   for(int i=0; i<scanner.num_pixels*scanner.num_pixels; i++)
   {
     fs.read(reinterpret_cast<char*>(&buffer), sizeof(double));
-    scanner.row_sums[i] = buffer;
+    scanner.row_sums[i] = 1.0 / (buffer + 0.000001);
   }
 
   for(int i=0; i<scanner.num_views*scanner.num_detectors; i++)
   {
     fs.read(reinterpret_cast<char*>(&buffer), sizeof(double));
-    scanner.col_sums[i] = buffer;
+    scanner.col_sums[i] = 1.0 / (buffer + 0.000001);
   }
   fs.close();
 }
@@ -226,8 +226,14 @@ int main(int argc, const char* argv[])
   {
     std::vector<double> sinogram_error;
     sinogram_error.reserve(total_detectors);
-    std::fill(img.begin(), img.end(), 0.0); 
+    // std::fill(img.begin(), img.end(), 0.0); 
 
+    project(scanner, &img, &sinogram, CT::ProjectionDirection::Backward);
+
+    project(scanner, &img, &sinogram_error, CT::ProjectionDirection::Forward);
+
+    std::transform(sinogram_error.begin(), sinogram_error.end(), sinogram.begin(), sinogram_error.begin(), std::minus<double>());
+    std::transform(sinogram_error.begin(), sinogram_error.end(), scanner.row_sums.begin(), sinogram_error.begin(), std::multiplies<double>()); 
   }
 
   return 0;
