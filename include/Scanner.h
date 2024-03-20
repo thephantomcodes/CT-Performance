@@ -50,17 +50,16 @@ namespace CT
       double rotation_delta;
       std::vector<double> row_sums;
       std::vector<double> col_sums;
-      double grand_total;
 
       void project(std::vector<double> *img, std::vector<double> *sinogram, int view_begin, int view_end, ProjectionDirection projectionDirection);
       void rampFilter(int N, double *in);
+      void PrintProjectionParameters();
 
     private:
       double projectPoint(double src[2], double pt[2], double x);
       void projectInterval(double src[2], double pt1[2], double pt2[2], double x, double interval[2]);
       bool intervalsIntersect(double interval1[2], double interval2[2]);
       void rotatePoint(double point[2], double theta);
-      void PrintProjectionParameters();
   };
 }
 

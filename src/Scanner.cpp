@@ -129,7 +129,6 @@ namespace CT
               {
                 row_sums[sinogram_index] += weight;
                 col_sums[img_index] += weight;
-                grand_total += weight;
               }
               #endif
             }

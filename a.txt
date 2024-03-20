@@ -1,0 +1,214 @@
+diff --git a/include/Scanner.h b/include/Scanner.h
+index 262d30b..f799791 100644
+--- a/include/Scanner.h
++++ b/include/Scanner.h
+@@ -12,7 +12,7 @@
+ #include <string>
+ #include <thread>
+ 
+-#undef GEN_SART_WEIGHTS
++#define GEN_SART_WEIGHTS
+ 
+ namespace CT
+ {
+@@ -50,17 +50,16 @@ namespace CT
+       double rotation_delta;
+       std::vector<double> row_sums;
+       std::vector<double> col_sums;
+-      double grand_total;
+ 
+       void project(std::vector<double> *img, std::vector<double> *sinogram, int view_begin, int view_end, ProjectionDirection projectionDirection);
+       void rampFilter(int N, double *in);
++      void PrintProjectionParameters();
+ 
+     private:
+       double projectPoint(double src[2], double pt[2], double x);
+       void projectInterval(double src[2], double pt1[2], double pt2[2], double x, double interval[2]);
+       bool intervalsIntersect(double interval1[2], double interval2[2]);
+       void rotatePoint(double point[2], double theta);
+-      void PrintProjectionParameters();
+   };
+ }
+ 
+diff --git a/sart_weights/sart_weight_128_360.dat b/sart_weights/sart_weight_128_360.dat
+index bbcfd17..e4906a9 100644
+Binary files a/sart_weights/sart_weight_128_360.dat and b/sart_weights/sart_weight_128_360.dat differ
+diff --git a/sart_weights/sart_weight_256_360.dat b/sart_weights/sart_weight_256_360.dat
+index 3d34c79..acda5a1 100644
+Binary files a/sart_weights/sart_weight_256_360.dat and b/sart_weights/sart_weight_256_360.dat differ
+diff --git a/sart_weights/sart_weight_32_360.dat b/sart_weights/sart_weight_32_360.dat
+index 8469bc5..8a7376c 100644
+Binary files a/sart_weights/sart_weight_32_360.dat and b/sart_weights/sart_weight_32_360.dat differ
+diff --git a/sart_weights/sart_weight_512_360.dat b/sart_weights/sart_weight_512_360.dat
+index 8555159..ef49a72 100644
+Binary files a/sart_weights/sart_weight_512_360.dat and b/sart_weights/sart_weight_512_360.dat differ
+diff --git a/src/Scanner.cpp b/src/Scanner.cpp
+index 6979a70..bfad078 100644
+--- a/src/Scanner.cpp
++++ b/src/Scanner.cpp
+@@ -129,7 +129,6 @@ namespace CT
+               {
+                 row_sums[sinogram_index] += weight;
+                 col_sums[img_index] += weight;
+-                grand_total += weight;
+               }
+               #endif
+             }
+diff --git a/src/main.cpp b/src/main.cpp
+index ea6309b..2252fac 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -16,30 +16,20 @@ void printSums(CT::Scanner& scanner)
+   double col_sum_total = 0.0;
+ 
+   std::cout << "Row Sums Size: " << scanner.row_sums.size() << "\n";
+-  for(auto row_sum : scanner.row_sums)
+-  {
+-    // std::cout << row_sum << " ";
+-    row_sum_total += row_sum;
+-  }
++  for(auto row_sum : scanner.row_sums) row_sum_total += row_sum;
+   std::cout << "Row Sum Total: " << row_sum_total << " " << std::endl;
+   
+   std::cout << "Col Sums Size: " << scanner.col_sums.size() << "\n";
+-  for(auto  col_sum : scanner.col_sums)
+-  {
+-    col_sum_total += col_sum;
+-  }
++  for(auto  col_sum : scanner.col_sums) col_sum_total += col_sum;
+   std::cout << "Col Sum Total: " << col_sum_total << " " << std::endl;
+   
+-  std::cout << "Grand Total: " << scanner.grand_total << std::endl;
+-  std::cout << "Row Diff: " << row_sum_total - scanner.grand_total << std::endl;
+-  std::cout << "Col Diff: " << col_sum_total - scanner.grand_total << std::endl;
++  std::cout << "Diff: " << row_sum_total - col_sum_total << std::endl;
+ }
+ 
+ void writeWeightData(std::string ofname, CT::Scanner& scanner)
+ {
+   std::fstream ofs;
+   ofs.open(ofname, std::fstream::out | std::fstream::binary);
+-  ofs.write(reinterpret_cast<char*>(&scanner.grand_total), sizeof(double));
+   for(auto row_sum : scanner.row_sums) ofs.write(reinterpret_cast<char*>(&row_sum), sizeof(double));;
+   for(auto col_sum : scanner.col_sums) ofs.write(reinterpret_cast<char*>(&col_sum), sizeof(double));;
+   ofs.close();
+@@ -88,19 +78,17 @@ void readFile(std::string fname, std::vector<double>& vec, int size)
+   fs.close();
+ }
+ 
+-void readSumFile(std::string fname, CT::Scanner &scanner)
++void readWeightData(std::string fname, CT::Scanner &scanner, double relax_param)
+ {
++  double buffer;
+   std::fstream fs;
+   fs.open(fname, std::fstream::in | std::fstream::binary);
++
+   if (!fs.is_open())
+   {
+     std::cerr << "Can't find input file " << fname << "\n";
+     exit(-1);
+   }
+-  
+-  double buffer;
+-  fs.read(reinterpret_cast<char*>(&buffer), sizeof(double));
+-  scanner.grand_total = buffer;
+ 
+   for(int i=0; i<scanner.num_pixels*scanner.num_pixels; i++)
+   {
+@@ -111,7 +99,7 @@ void readSumFile(std::string fname, CT::Scanner &scanner)
+   for(int i=0; i<scanner.num_views*scanner.num_detectors; i++)
+   {
+     fs.read(reinterpret_cast<char*>(&buffer), sizeof(double));
+-    scanner.col_sums[i] = 1.0 / (buffer + 0.000001);
++    scanner.col_sums[i] = relax_param / (buffer + 0.000001);
+   }
+   fs.close();
+ }
+@@ -148,15 +136,19 @@ int main(int argc, const char* argv[])
+   std::string in_file_prefix = "input/unit_disc_";
+   std::string out_file_prefix = "output/sino_unit_disc_";
+   std::string img_out_file_prefix = "output/img_unit_disc_";
++  std::string sart_out_file_prefix = "sart_output/sart_unit_disc_";
+   std::string sart_weight_prefix = "sart_weights/sart_weight_";
++
+   if(input_img == 'p')
+   {
+     in_file_prefix = "input/phantom_";
+     out_file_prefix = "output/sino_phantom_";
+     img_out_file_prefix = "output/img_phantom_";
++    sart_out_file_prefix = "sart_output/sart_phantom_";
+   }
+   
+   auto scanner = CT::Scanner(50.0, 55.0, sysSize, sysSize, sysSize, 10.0, fov, 0.0);
++  // scanner.PrintProjectionParameters();
+   int total_pixels = scanner.num_pixels*scanner.num_pixels;
+   int total_detectors = scanner.num_detectors*scanner.num_views;
+   std::vector<double> img(total_pixels);
+@@ -175,7 +167,7 @@ int main(int argc, const char* argv[])
+   return 0;
+ #endif
+ 
+-  readSumFile(sart_weight_prefix, scanner);
++  readWeightData(sart_weight_prefix, scanner, relax_param);
+   // printSums(scanner);
+   
+ ////////////////////////
+@@ -208,7 +200,7 @@ int main(int argc, const char* argv[])
+ // Back Projection
+ ////////////////////////
+ 
+-  if(operation == 'f' || operation == 'b')
++  if((operation == 'f') || (operation == 'b'))
+   {
+     project(scanner, &img, &sinogram, CT::ProjectionDirection::Backward);
+     
+@@ -224,16 +216,44 @@ int main(int argc, const char* argv[])
+   
+   if(operation == 's')
+   {
+-    std::vector<double> sinogram_error;
++    std::vector<double> sinogram_error, img_error;
+     sinogram_error.reserve(total_detectors);
+-    // std::fill(img.begin(), img.end(), 0.0); 
++    img_error.reserve(total_pixels);
++    std::string sart_weight_fname;
+ 
++    std::fill(img.begin(), img.end(), 0.0); 
+     project(scanner, &img, &sinogram, CT::ProjectionDirection::Backward);
+ 
+-    project(scanner, &img, &sinogram_error, CT::ProjectionDirection::Forward);
++    for(int i=0; i<sart_iter; i++)
++    {
++      std::cout << "SART Iter: " << i << "\n";
++      //compute error
++      project(scanner, &img, &sinogram_error, CT::ProjectionDirection::Forward);
++      std::transform(sinogram.begin(), sinogram.end(), sinogram_error.begin(), sinogram_error.begin(), std::minus<double>());
++
++      //apply weights and project error
++      std::transform(sinogram_error.begin(), sinogram_error.end(), scanner.row_sums.begin(), sinogram_error.begin(), std::multiplies<double>()); 
++      project(scanner, &img_error, &sinogram_error, CT::ProjectionDirection::Backward);
++      std::transform(img_error.begin(), img_error.end(), scanner.col_sums.begin(), img_error.begin(), std::multiplies<double>());
++
++      //update img
++      std::transform(img.begin(), img.end(), img_error.begin(), img.begin(), std::minus<double>());
++
++      sart_weight_fname = "";
++      sart_weight_fname
++        .append(sart_out_file_prefix)
++        .append(std::to_string(scanner.num_pixels))
++        .append("_")
++        .append(std::to_string((int)scanner.field_of_view))
++        .append("_")
++        .append(std::to_string(i))
++        .append(".ppm");
+ 
+-    std::transform(sinogram_error.begin(), sinogram_error.end(), sinogram.begin(), sinogram_error.begin(), std::minus<double>());
+-    std::transform(sinogram_error.begin(), sinogram_error.end(), scanner.row_sums.begin(), sinogram_error.begin(), std::multiplies<double>()); 
++      writePpmHeader(sart_weight_fname, scanner.num_detectors, scanner.num_views);
++      double img_max = *std::max_element(img.begin(), img.end());
++      double img_min = *std::min_element(img.begin(), img.end());
++      writePpmData(sart_weight_fname, img, total_pixels, img_max, img_min);
++    }
+   }
+ 
+   return 0;
