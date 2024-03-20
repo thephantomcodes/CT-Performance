@@ -12,7 +12,7 @@
 #include <string>
 #include <thread>
 
-#define GEN_SART_WEIGHTS
+#undef GEN_SART_WEIGHTS
 
 namespace CT
 {
