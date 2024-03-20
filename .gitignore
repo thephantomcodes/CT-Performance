@@ -33,6 +33,7 @@
 
 # images
 output/*.ppm
+sart_output/*.ppm
 
 #cmake junk
 CMakeFiles
