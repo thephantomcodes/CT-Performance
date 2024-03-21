@@ -217,9 +217,9 @@ int main(int argc, const char* argv[])
   if(operation == 's')
   {
     std::vector<double> sinogram_error, img_error;
-    sinogram_error.reserve(total_detectors);
-    img_error.reserve(total_pixels);
-    std::string sart_weight_fname;
+    sinogram_error.resize(total_detectors);
+    img_error.resize(total_pixels);
+    std::string sart_out_fname;
 
     std::fill(img.begin(), img.end(), 0.0); 
     project(scanner, &img, &sinogram, CT::ProjectionDirection::Backward);
@@ -229,30 +229,46 @@ int main(int argc, const char* argv[])
       std::cout << "SART Iter: " << i << "\n";
       //compute error
       project(scanner, &img, &sinogram_error, CT::ProjectionDirection::Forward);
+
       std::transform(sinogram.begin(), sinogram.end(), sinogram_error.begin(), sinogram_error.begin(), std::minus<double>());
+        // writePpmHeader("sart_output/sino_err_0_" + std::to_string(i) + ".ppm", scanner.num_detectors, scanner.num_views);
+        double _max = *std::max_element(sinogram_error.begin(), sinogram_error.end());
+        double _min = *std::min_element(sinogram_error.begin(), sinogram_error.end());
+        std::cout << _min << " - " << _max << "\n";
+        // writePpmData("sart_output/sino_err_0_" + std::to_string(i) + ".ppm", sinogram_error, total_detectors, _min,_max);
 
       //apply weights and project error
       std::transform(sinogram_error.begin(), sinogram_error.end(), scanner.row_sums.begin(), sinogram_error.begin(), std::multiplies<double>()); 
+        // writePpmHeader("sart_output/sino_err_1_" + std::to_string(i) + ".ppm", scanner.total_detectors, scanner.num_views);
+        _max = *std::max_element(sinogram_error.begin(), sinogram_error.end());
+        _min = *std::min_element(sinogram_error.begin(), sinogram_error.end());
+        std::cout << _min << " - " << _max << "\n";
+        // writePpmData("sart_output/sino_err_1_" + std::to_string(i) + ".ppm", sinogram_error, total_pixels, _max, _min);
+
       project(scanner, &img_error, &sinogram_error, CT::ProjectionDirection::Backward);
       std::transform(img_error.begin(), img_error.end(), scanner.col_sums.begin(), img_error.begin(), std::multiplies<double>());
+        // writePpmHeader("sart_output/img_err_0_" + std::to_string(i) + ".ppm", scanner.num_pixels, scanner.num_pixels);
+        _max = *std::max_element(img_error.begin(), img_error.end());
+        _min = *std::min_element(img_error.begin(), img_error.end());
+        std::cout << _min << " - " << _max << "\n";
+        // writePpmData("sart_output/sino_err_0_" + std::to_string(i) + ".ppm", img_error, total_pixels, _max, _min);
 
       //update img
       std::transform(img.begin(), img.end(), img_error.begin(), img.begin(), std::minus<double>());
 
-      sart_weight_fname = "";
-      sart_weight_fname
-        .append(sart_out_file_prefix)
-        .append(std::to_string(scanner.num_pixels))
+      sart_out_fname = sart_out_file_prefix;
+      sart_out_fname.append(std::to_string(scanner.num_pixels))
         .append("_")
         .append(std::to_string((int)scanner.field_of_view))
         .append("_")
         .append(std::to_string(i))
         .append(".ppm");
 
-      writePpmHeader(sart_weight_fname, scanner.num_detectors, scanner.num_views);
-      double img_max = *std::max_element(img.begin(), img.end());
-      double img_min = *std::min_element(img.begin(), img.end());
-      writePpmData(sart_weight_fname, img, total_pixels, img_max, img_min);
+      writePpmHeader(sart_out_fname, scanner.num_pixels, scanner.num_pixels);
+      _max = *std::max_element(img.begin(), img.end());
+      _min = *std::min_element(img.begin(), img.end());
+      std::cout << _min << " - " << _max << "\n";
+      writePpmData(sart_out_fname, img, total_pixels, _max, _min);
     }
   }
 
