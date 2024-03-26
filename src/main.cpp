@@ -184,7 +184,9 @@ int main(int argc, const char* argv[])
 // Forward Projection
 ////////////////////////
   
-  project(scanner, &img, &sinogram, CT::ProjectionDirection::Forward);
+  // project(scanner, &img, &sinogram, CT::ProjectionDirection::Forward);
+  scanner.project<<<1, 1>>>(&img, &sinogram, 0, scanner.num_views, CT::ProjectionDirection::Forward);
+  cudaDeviceSynchronize();
   
   writePpmHeader(out_file_prefix + std::to_string(scanner.num_pixels) + ".ppm", scanner.num_detectors, scanner.num_views);
   double sino_max = *std::max_element(sinogram.begin(), sinogram.end());

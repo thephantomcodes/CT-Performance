@@ -5,7 +5,7 @@
 
 namespace CT
 {
-	Scanner::Scanner(double scanning_radius_, double detector_length_, int num_pixels_, int num_views_, int num_detectors_, double phantom_radius_, double field_of_view_, double phase_)
+  Scanner::Scanner(double scanning_radius_, double detector_length_, int num_pixels_, int num_views_, int num_detectors_, double phantom_radius_, double field_of_view_, double phase_)
     : scanning_radius(scanning_radius_)
     , detector_length(detector_length_)
     , num_pixels(num_pixels_)
