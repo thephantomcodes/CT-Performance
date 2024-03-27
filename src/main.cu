@@ -41,7 +41,7 @@ void writePpmHeader(std::string ofname, int width, int height)
   ofs.close();
 }
 
-void writePpmData(std::string ofname, std::vector<double> data, int width, double max_val, double min_val)
+void writePpmData(std::string ofname, double *data, int width, double max_val, double min_val)
 {
   std::fstream ofs;
   ofs.open(ofname, std::fstream::out | std::fstream::binary | std::ios_base::app);
@@ -52,7 +52,7 @@ void writePpmData(std::string ofname, std::vector<double> data, int width, doubl
   ofs.close();
 }
 
-void readFile(std::string fname, std::vector<double>& vec, int size)
+void readFile(std::string fname, double *vec, int size)
 {
   std::fstream fs;
   fs.open(fname, std::fstream::in | std::fstream::binary);
@@ -169,7 +169,7 @@ int main(int argc, const char* argv[])
   std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
   
   writePpmHeader(out_file_prefix + std::to_string(scanner.num_pixels) + ".ppm", scanner.num_detectors, scanner.num_views);
-  double sino_max = *std::max_element(sinogram.begin(), sinogram.end());
+  double sino_max = *std::max_element(sinogram, sinogram + total_detectors);
   writePpmData(out_file_prefix + std::to_string(scanner.num_pixels) + ".ppm", sinogram, total_detectors, sino_max, 0.0);
 
 ////////////////////////
