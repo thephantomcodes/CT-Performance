@@ -162,7 +162,7 @@ int main(int argc, const char* argv[])
 
   start = std::chrono::system_clock::now();
   // project(scanner, img.data(), sinogram.data(), 0, scanner.num_views, ProjectionDirection::Forward);
-  project<<<1, 1>>>(scanner, img, sinogram, 0, scanner.num_views, ProjectionDirection::Forward);
+  project<<<1, scanner.num_views>>>(scanner, img, sinogram, 0, scanner.num_views, ProjectionDirection::Forward);
   cudaDeviceSynchronize();
   end = std::chrono::system_clock::now(); 
   elapsed_seconds = end - start;
@@ -248,6 +248,10 @@ int main(int argc, const char* argv[])
 //       writePpmData(sart_out_fname, img, total_pixels, _max, _min);
 //     }
   // }
+
+  cudaFree(img);
+  cudaFree(sinogram);
+  // cudaProfilerStop();
 
   return 0;
 }
