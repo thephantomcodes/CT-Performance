@@ -117,6 +117,7 @@ int main(int argc, const char* argv[])
   char operation = (argc <= 4) ? 'p' : *argv[4];
   int sart_iter = (argc <= 5) ? 5 : std::atoi(argv[5]);
   double relax_param = (argc <= 6) ? 1.0 : (double)std::atof(argv[6]);
+  int free_param = (argc <= 7) ? 1 : std::atoi(argv[7]);
 
   std::string in_file_prefix = "input/unit_disc_";
   std::string out_file_prefix = "output/sino_unit_disc_";
@@ -162,7 +163,13 @@ int main(int argc, const char* argv[])
 
   start = std::chrono::system_clock::now();
   // project(scanner, img.data(), sinogram.data(), 0, scanner.num_views, ProjectionDirection::Forward);
-  project<<<1, scanner.num_views>>>(scanner, img, sinogram, 0, scanner.num_views, ProjectionDirection::Forward);
+  int blockDim = scanner.num_views/free_param;
+  int numBlocks = (scanner.num_views + blockDim - 1) / blockDim;
+  std::cout << "free param " << free_param << "\n";
+  std::cout << "blockDim " << blockDim << "\n";
+  std::cout << "numBlocks " << numBlocks << "\n";
+;
+  project<<<numBlocks, blockDim>>>(scanner, img, sinogram, ProjectionDirection::Forward);
   cudaDeviceSynchronize();
   end = std::chrono::system_clock::now(); 
   elapsed_seconds = end - start;

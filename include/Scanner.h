@@ -18,7 +18,7 @@ struct Scanner
     double field_of_view;
 };
 
-__global__ void project(Scanner scanner, double *img, double *sinogram, int view_begin, int view_end, ProjectionDirection projectionDirection);
+__global__ void project(Scanner scanner, double *img, double *sinogram, ProjectionDirection projectionDirection);
 // __global__ void rampFilter(int N, double *in);
 __device__ void projectPoint(double src[2], double pt[2], double x);
 __device__ void projectInterval(double src[2], double pt1[2], double pt2[2], double x, double interval[2]);

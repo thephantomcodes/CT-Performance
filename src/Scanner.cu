@@ -48,10 +48,10 @@ void rotatePoint(double point[2], double theta)
 }
 
 __global__
-void project(Scanner scanner, double *img, double *sinogram, int view_begin, int view_end, ProjectionDirection projectionDirection)
+void project(Scanner scanner, double *img, double *sinogram, ProjectionDirection projectionDirection)
 {
-  int view = threadIdx.x;
-  int stride = blockDim.x;
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  int stride = blockDim.x * gridDim.x;
 
   double det_len = scanner.detector_length/scanner.num_detectors;
   double det_begin = 0.5*scanner.detector_length;
@@ -61,8 +61,7 @@ void project(Scanner scanner, double *img, double *sinogram, int view_begin, int
   // double *col_sums = (double *)malloc(scanner.num_pixels*scanner.num_pixels * sizeof(double));
   // double *row_sums = (double *)malloc(scanner.num_detectors*scanner.num_views * sizeof(double));
 
-  // for(int v=view_begin; v<view_end; v++)
-  for(int v=view; v<=view; v++)
+  for(int v=index; v<scanner.num_views; v+=stride)
   {
     double theta = fmod(v*rotation_delta, 360.0);
     bool swap_indices = (theta > 45.0 && theta <= 135.0) || (theta > 225.0 && theta <= 315.0);
