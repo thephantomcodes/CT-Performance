@@ -113,24 +113,28 @@ void readWeightData(std::string fname, CT::Scanner &scanner, double relax_param)
   fs.close();
 }
 
-void project(CT::Scanner& scanner, std::vector<double> *img, std::vector<double> *sinogram, CT::ProjectionDirection projectionDirection)
+void project(CT::Scanner& scanner, std::vector<double> *img, std::vector<double> *sinogram, CT::ProjectionDirection projectionDirection, int thread_count)
 {
+  std::thread *t = new std::thread[thread_count];
+
   std::chrono::time_point<std::chrono::system_clock> start, end;
   start = std::chrono::system_clock::now();
   
-  std::thread t1(&CT::Scanner::project, scanner, img, sinogram, 0, scanner.num_views/4, projectionDirection);
-  std::thread t2(&CT::Scanner::project, scanner, img, sinogram, scanner.num_views/4, scanner.num_views/2, projectionDirection);
-  std::thread t3(&CT::Scanner::project, scanner, img, sinogram, scanner.num_views/2, 3*scanner.num_views/4, projectionDirection);
-  std::thread t4(&CT::Scanner::project, scanner, img, sinogram, 3*scanner.num_views/4, scanner.num_views, projectionDirection);
-  
-  t1.join();
-  t2.join();
-  t3.join();
-  t4.join();
+  for(int i=0; i<thread_count; i++)
+  {
+    t[i] = std::thread(&CT::Scanner::project, scanner, img, sinogram, i*scanner.num_views/thread_count, (i+1)*scanner.num_views/thread_count, projectionDirection);
+  }
+
+  for(int i=0; i<thread_count; i++)
+  {
+    t[i].join();
+  }
   
   end = std::chrono::system_clock::now(); 
   std::chrono::duration<double> elapsed_seconds = end - start;
   std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+
+  delete[] t;
 }
 
 int main(int argc, const char* argv[])
@@ -139,8 +143,9 @@ int main(int argc, const char* argv[])
   double fov = (argc <= 2) ? 360.0 : (double)std::atof(argv[2]);
   char input_img = (argc <= 3) ? 'u' : *argv[3];
   char operation = (argc <= 4) ? 'p' : *argv[4];
-  int sart_iter = (argc <= 5) ? 5 : std::atoi(argv[5]);
-  double relax_param = (argc <= 6) ? 1.0 : (double)std::atof(argv[6]);
+  int thread_count = (argc <= 5) ? 1 : std::atoi(argv[5]);
+  int sart_iter = (argc <= 6) ? 5 : std::atoi(argv[6]);
+  double relax_param = (argc <= 7) ? 1.0 : (double)std::atof(argv[7]);
 
   std::string in_file_prefix = "input/unit_disc_";
   std::string out_file_prefix = "output/sino_unit_disc_";
@@ -172,7 +177,7 @@ int main(int argc, const char* argv[])
     .append(".dat");
 
 #ifdef GEN_SART_WEIGHTS
-  scanner.project(&img, &sinogram, 0, scanner.num_views, CT::ProjectionDirection::Forward);
+  scanner.project(&img, &sinogram, 0, scanner.num_views, CT::ProjectionDirection::Forward, thread_count);
   printSums(scanner);
   writeWeightData(sart_weight_prefix, scanner);
   return 0;
@@ -184,7 +189,7 @@ int main(int argc, const char* argv[])
 // Forward Projection
 ////////////////////////
   
-  project(scanner, &img, &sinogram, CT::ProjectionDirection::Forward);
+  project(scanner, &img, &sinogram, CT::ProjectionDirection::Forward, thread_count);
   
   writePpmHeader(out_file_prefix + std::to_string(scanner.num_pixels) + ".ppm", scanner.num_detectors, scanner.num_views);
   double sino_max = *std::max_element(sinogram.begin(), sinogram.end());
@@ -212,7 +217,7 @@ int main(int argc, const char* argv[])
 
   if((operation == 'f') || (operation == 'b'))
   {
-    project(scanner, &img, &sinogram, CT::ProjectionDirection::Backward);
+    project(scanner, &img, &sinogram, CT::ProjectionDirection::Backward, thread_count);
     
     writePpmHeader(img_out_file_prefix + std::to_string(scanner.num_pixels) + ".ppm", scanner.num_detectors, scanner.num_views);
     double img_max = *std::max_element(img.begin(), img.end());
@@ -240,12 +245,12 @@ int main(int argc, const char* argv[])
     {
       std::cout << "\nSART Iter: " << i << "\n";
       //compute error
-      project(scanner, &img, &sinogram_error, CT::ProjectionDirection::Forward);
+      project(scanner, &img, &sinogram_error, CT::ProjectionDirection::Forward, thread_count);
       std::transform(sinogram_error.begin(), sinogram_error.end(), sinogram.begin(), sinogram_error.begin(), std::minus<double>());
 
       //apply weights and project error
       std::transform(sinogram_error.begin(), sinogram_error.end(), scanner.row_sums.begin(), sinogram_error.begin(), std::multiplies<double>()); 
-      project(scanner, &img_error, &sinogram_error, CT::ProjectionDirection::Backward);
+      project(scanner, &img_error, &sinogram_error, CT::ProjectionDirection::Backward, thread_count);
       std::transform(img_error.begin(), img_error.end(), scanner.col_sums.begin(), img_error.begin(), std::multiplies<double>());
 
       //update img
