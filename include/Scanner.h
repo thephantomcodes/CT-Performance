@@ -52,7 +52,7 @@ namespace CT
       std::vector<double> col_sums;
 
       void project(std::vector<double> *img, std::vector<double> *sinogram, int view_begin, int view_end, ProjectionDirection projectionDirection);
-      void rampFilter(int N, double *in);
+      void rampFilter(double *in);
       void PrintProjectionParameters();
 
     private:

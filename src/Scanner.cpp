@@ -138,29 +138,29 @@ namespace CT
     }
   }
 
-  void Scanner::rampFilter(int N, double *in)
+  void Scanner::rampFilter(double *in)
   {
     fftw_complex *out;
-    out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (N/2 + 1));
+    out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (num_detectors/2 + 1));
     fftw_plan fwd, inv;
     
     // std::cout << "Start Ramp Filter\n";
-    for(int i=0; i<N; i++)
+    for(int i=0; i<num_views; i++)
     {
       // std::cout << "Start Ramp iter " << i << "\n";
-      fwd = fftw_plan_dft_r2c_1d(N, in, out, FFTW_ESTIMATE);
+      fwd = fftw_plan_dft_r2c_1d(num_detectors, in, out, FFTW_ESTIMATE);
       fftw_execute(fwd);
-      for(int j=0; j<(N/2 + 1); j++)
+      for(int j=0; j<(num_detectors/2 + 1); j++)
       {
-        double gain = (double)(j+1)/(N/2 + 1);
+        double gain = (double)(j+1)/(num_detectors/2 + 1);
         out[j][0] *= gain;
         out[j][1] *= gain;
       }
-      inv = fftw_plan_dft_c2r_1d(N, out, in, FFTW_ESTIMATE);
+      inv = fftw_plan_dft_c2r_1d(num_detectors, out, in, FFTW_ESTIMATE);
       fftw_execute(inv);
       fftw_destroy_plan(fwd);
       fftw_destroy_plan(inv);
-      in += N;
+      in += num_detectors;
     }
     
     // std::cout << "End Ramp Filter\n";

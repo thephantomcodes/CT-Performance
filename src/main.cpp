@@ -212,7 +212,7 @@ int main(int argc, const char* argv[])
   if(operation == 'f')
   {
     start = std::chrono::system_clock::now();
-    scanner.rampFilter(scanner.num_views, sinogram.data());
+    scanner.rampFilter(sinogram.data());
     end = std::chrono::system_clock::now(); 
     elapsed_seconds = end - start;
     std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
