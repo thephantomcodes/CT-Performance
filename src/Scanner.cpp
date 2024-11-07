@@ -144,8 +144,10 @@ namespace CT
     out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (N/2 + 1));
     fftw_plan fwd, inv;
     
+    // std::cout << "Start Ramp Filter\n";
     for(int i=0; i<N; i++)
     {
+      // std::cout << "Start Ramp iter " << i << "\n";
       fwd = fftw_plan_dft_r2c_1d(N, in, out, FFTW_ESTIMATE);
       fftw_execute(fwd);
       for(int j=0; j<(N/2 + 1); j++)
@@ -161,6 +163,8 @@ namespace CT
       in += N;
     }
     
+    // std::cout << "End Ramp Filter\n";
     fftw_free(out);
+    // std::cout << "Free Ramp Filter\n";
   }
 }
