@@ -8,6 +8,7 @@
 #include <chrono>
 #include <string>
 #include <thread>
+#include <random>
 #include "Scanner.h"
 
 void printSums(CT::Scanner& scanner)
@@ -82,6 +83,23 @@ void readFile(std::string fname, std::vector<double>& vec, int size)
   {
     fs.read(reinterpret_cast<char*>(&buffer), sizeof(double));
     vec[i] = buffer;
+  }
+  fs.close();
+}
+
+void writeFile(std::string fname, std::vector<double>& vec, int size)
+{
+  std::ofstream fs;
+  fs.open(fname, std::fstream::out | std::fstream::binary);
+  if (!fs.is_open())
+  {
+    std::cerr << "Can't find output file " << fname << "\n";
+    exit(-1);
+  }
+  
+  for(int i=0; i<size; i++)
+  {
+    fs << vec[i];
   }
   fs.close();
 }
@@ -188,6 +206,34 @@ int main(int argc, const char* argv[])
 #endif
 
   // printSums(scanner);
+
+////////////////////////
+// Gaussian Noise
+////////////////////////
+
+  if(operation == 'g')
+  {
+    std::cout << "Adding Gaussian noise.\n";
+    //use fov as std_dev
+    double std_dev = fov;
+    std::random_device rd{};
+    std::mt19937 gen{rd()};
+    std::normal_distribution d{0.0, std_dev};
+    for(int i=0; i<total_pixels; i++)
+    {
+      img[i] += d(gen);
+    }
+    std::string guass_out_prefix = in_file_prefix + "gauss_" + std::to_string(scanner.num_pixels) + '_' + std::to_string(std_dev);
+    writeFile(guass_out_prefix + ".dat", img, total_pixels);
+
+    writePpmHeader(guass_out_prefix + ".ppm", scanner.num_pixels, scanner.num_pixels);
+    std::cout << "Back projection header done\n";
+    double img_max = *std::max_element(img.begin(), img.end());
+    double img_min = *std::min_element(img.begin(), img.end());
+    std::cout << "Back projection ranges done\n";
+    writePpmData(guass_out_prefix + ".ppm", img, total_pixels, img_max, img_min);
+    return 0;
+  }
   
 ////////////////////////
 // Forward Projection
