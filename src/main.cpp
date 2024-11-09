@@ -99,7 +99,8 @@ void writeFile(std::string fname, std::vector<double>& vec, int size)
   
   for(int i=0; i<size; i++)
   {
-    fs << vec[i];
+    // fs << vec[i];
+    fs.write (reinterpret_cast<char*>(&vec[i]),sizeof(double));
   }
   fs.close();
 }
@@ -163,25 +164,25 @@ int main(int argc, const char* argv[])
   int num_views = (argc <= 2) ? 128 : std::atoi(argv[2]);
   int num_detectors = (argc <= 3) ? 128 : std::atoi(argv[3]);
   double fov = (argc <= 4) ? 360.0 : (double)std::atof(argv[4]);
-  char input_img = (argc <= 5) ? 'u' : *argv[5];
+  std::string input_img = (argc <= 5) ? "phantom_256" : argv[5];
   char operation = (argc <= 6) ? 'p' : *argv[6];
   int thread_count = (argc <= 7) ? 1 : std::atoi(argv[7]);
   int sart_iter = (argc <= 8) ? 5 : std::atoi(argv[8]);
   double relax_param = (argc <= 9) ? 1.0 : (double)std::atof(argv[9]);
 
-  std::string in_file_prefix = "input/unit_disc_";
-  std::string out_file_prefix = "output/sino_unit_disc_";
-  std::string img_out_file_prefix = "output/img_unit_disc_";
-  std::string sart_out_file_prefix = "sart_output/sart_unit_disc_";
-  std::string sart_weight_prefix = "sart_weights/sart_weight_";
+  std::string in_file_prefix = "input/" + input_img;
+  std::string out_file_prefix = "output/sino_" + input_img;
+  std::string img_out_file_prefix = "output/img_" + input_img;
+  std::string sart_out_file_prefix = "sart_output/sart_" + input_img;
+  std::string sart_weight_prefix = "sart_weights/sart_weight_" + input_img;
 
-  if(input_img == 'p')
-  {
-    in_file_prefix = "input/phantom_";
-    out_file_prefix = "output/sino_phantom_";
-    img_out_file_prefix = "output/img_phantom_";
-    sart_out_file_prefix = "sart_output/sart_phantom_";
-  }
+  // if(input_img == 'p')
+  // {
+  //   in_file_prefix = "input/phantom_";
+  //   out_file_prefix = "output/sino_phantom_";
+  //   img_out_file_prefix = "output/img_phantom_";
+  //   sart_out_file_prefix = "sart_output/sart_phantom_";
+  // }
   
   auto scanner = CT::Scanner(50.0, 40.0, num_pixels, num_views, num_detectors, 10.0, fov, 0.0);
   scanner.PrintProjectionParameters();
@@ -189,7 +190,7 @@ int main(int argc, const char* argv[])
   int total_detectors = scanner.num_detectors*scanner.num_views;
   std::vector<double> img(total_pixels);
   std::vector<double> sinogram(total_detectors);
-  readFile(in_file_prefix + std::to_string(scanner.num_pixels) + ".dat", img, total_pixels);
+  readFile(in_file_prefix + ".dat", img, total_pixels);
   sart_weight_prefix
     .append(std::to_string(scanner.num_pixels))
     .append("_")
@@ -223,14 +224,12 @@ int main(int argc, const char* argv[])
     {
       img[i] += d(gen);
     }
-    std::string guass_out_prefix = in_file_prefix + "gauss_" + std::to_string(scanner.num_pixels) + '_' + std::to_string(std_dev);
+    std::string guass_out_prefix = in_file_prefix + "_gauss_" + std::to_string(std_dev);
     writeFile(guass_out_prefix + ".dat", img, total_pixels);
 
     writePpmHeader(guass_out_prefix + ".ppm", scanner.num_pixels, scanner.num_pixels);
-    std::cout << "Back projection header done\n";
     double img_max = *std::max_element(img.begin(), img.end());
     double img_min = *std::min_element(img.begin(), img.end());
-    std::cout << "Back projection ranges done\n";
     writePpmData(guass_out_prefix + ".ppm", img, total_pixels, img_max, img_min);
     return 0;
   }
@@ -242,21 +241,22 @@ int main(int argc, const char* argv[])
   std::cout << "Forward projection\n";
   project(scanner, &img, &sinogram, CT::ProjectionDirection::Forward, thread_count);
   
-  std::string fname_fp_out = out_file_prefix + std::to_string(scanner.num_pixels) + "_" + std::to_string(scanner.num_views) + "_" + std::to_string(scanner.num_detectors) + ".ppm";
+  std::string fname_fp_out = out_file_prefix + "_" + std::to_string(scanner.num_views) + "_" + std::to_string(scanner.num_detectors) + ".ppm";
   writePpmHeader(fname_fp_out, scanner.num_detectors, scanner.num_views);
   double sino_max = *std::max_element(sinogram.begin(), sinogram.end());
-  writePpmData(fname_fp_out, sinogram, total_detectors, sino_max, 0.0);
+  double sino_min = *std::min_element(sinogram.begin(), sinogram.end());
+  writePpmData(fname_fp_out, sinogram, total_detectors, sino_max, sino_min);
   
 ////////////////////////
 // Ramp Filtering
 ////////////////////////
 
-  std::cout << "Ramp Filtering\n";
   std::chrono::time_point<std::chrono::system_clock> start, end;
   std::chrono::duration<double> elapsed_seconds;
 
   if(operation == 'f')
   {
+    std::cout << "Ramp Filtering\n";
     start = std::chrono::system_clock::now();
     scanner.rampFilter(sinogram.data());
     end = std::chrono::system_clock::now(); 
@@ -268,21 +268,17 @@ int main(int argc, const char* argv[])
 // Back Projection
 ////////////////////////
 
-  std::cout << "Back projection\n";
   if((operation == 'f') || (operation == 'b'))
   {
+    std::cout << "Back projection\n";
     project(scanner, &img, &sinogram, CT::ProjectionDirection::Backward, thread_count);
-    std::cout << "Back projection done\n";
     
-    std::string fname_bp_out = img_out_file_prefix + std::to_string(scanner.num_pixels) + "_" + std::to_string(scanner.num_views) + "_" + std::to_string(scanner.num_detectors) + ".ppm";
-    std::cout << "Back projection fname done\n";
+    std::string fname_bp_out = img_out_file_prefix + "_" + std::to_string(scanner.num_views) + "_" + std::to_string(scanner.num_detectors) + ".ppm";
     writePpmHeader(fname_bp_out, scanner.num_pixels, scanner.num_pixels);
-    std::cout << "Back projection header done\n";
+    // std::cout << "Back projection header done\n";
     double img_max = *std::max_element(img.begin(), img.end());
     double img_min = *std::min_element(img.begin(), img.end());
-    std::cout << "Back projection ranges done\n";
     writePpmData(fname_bp_out, img, total_pixels, img_max, img_min);
-    std::cout << "Back projection data done\n";
   }
 
 ////////////////////////
@@ -317,9 +313,7 @@ int main(int argc, const char* argv[])
       std::transform(img.begin(), img.end(), img_error.begin(), img.begin(), std::minus<double>());
 
       sart_out_fname = sart_out_file_prefix;
-      sart_out_fname.append(std::to_string(scanner.num_pixels))
-        .append("_")
-        .append(std::to_string(scanner.num_views))
+      sart_out_fname.append(std::to_string(scanner.num_views))
         .append("_")
         .append(std::to_string(scanner.num_detectors))
         .append("_")
