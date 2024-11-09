@@ -165,7 +165,7 @@ int main(int argc, const char* argv[])
   int num_detectors = (argc <= 3) ? 128 : std::atoi(argv[3]);
   double fov = (argc <= 4) ? 360.0 : (double)std::atof(argv[4]);
   std::string input_img = (argc <= 5) ? "phantom_256" : argv[5];
-  char operation = (argc <= 6) ? 'p' : *argv[6];
+  std::string operation = (argc <= 6) ? "p" : argv[6];
   int thread_count = (argc <= 7) ? 1 : std::atoi(argv[7]);
   int sart_iter = (argc <= 8) ? 5 : std::atoi(argv[8]);
   double relax_param = (argc <= 9) ? 1.0 : (double)std::atof(argv[9]);
@@ -175,14 +175,6 @@ int main(int argc, const char* argv[])
   std::string img_out_file_prefix = "output/img_" + input_img;
   std::string sart_out_file_prefix = "sart_output/sart_" + input_img;
   std::string sart_weight_prefix = "sart_weights/sart_weight_" + input_img;
-
-  // if(input_img == 'p')
-  // {
-  //   in_file_prefix = "input/phantom_";
-  //   out_file_prefix = "output/sino_phantom_";
-  //   img_out_file_prefix = "output/img_phantom_";
-  //   sart_out_file_prefix = "sart_output/sart_phantom_";
-  // }
   
   auto scanner = CT::Scanner(50.0, 40.0, num_pixels, num_views, num_detectors, 10.0, fov, 0.0);
   scanner.PrintProjectionParameters();
@@ -212,7 +204,7 @@ int main(int argc, const char* argv[])
 // Gaussian Noise
 ////////////////////////
 
-  if(operation == 'g')
+  if(operation == "g")
   {
     std::cout << "Adding Gaussian noise.\n";
     //use fov as std_dev
@@ -254,7 +246,7 @@ int main(int argc, const char* argv[])
   std::chrono::time_point<std::chrono::system_clock> start, end;
   std::chrono::duration<double> elapsed_seconds;
 
-  if(operation == 'f')
+  if(operation == "f")
   {
     std::cout << "Ramp Filtering\n";
     start = std::chrono::system_clock::now();
@@ -268,7 +260,7 @@ int main(int argc, const char* argv[])
 // Back Projection
 ////////////////////////
 
-  if((operation == 'f') || (operation == 'b'))
+  if((operation == "f") || (operation == "b"))
   {
     std::cout << "Back projection\n";
     project(scanner, &img, &sinogram, CT::ProjectionDirection::Backward, thread_count);
@@ -285,7 +277,7 @@ int main(int argc, const char* argv[])
 // SART
 ////////////////////////
   
-  if(operation == 's')
+  if(operation == "s")
   {
     readWeightData(sart_weight_prefix, scanner, relax_param);
 
