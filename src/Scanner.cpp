@@ -138,16 +138,15 @@ namespace CT
     }
   }
 
+  // Direct specification of ramp filter in frequency domain
   void Scanner::rampFilter(double *in)
   {
     fftw_complex *out;
     out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (num_detectors/2 + 1));
     fftw_plan fwd, inv;
     
-    // std::cout << "Start Ramp Filter\n";
     for(int i=0; i<num_views; i++)
     {
-      // std::cout << "Start Ramp iter " << i << "\n";
       fwd = fftw_plan_dft_r2c_1d(num_detectors, in, out, FFTW_ESTIMATE);
       fftw_execute(fwd);
       for(int j=0; j<(num_detectors/2 + 1); j++)
@@ -163,8 +162,50 @@ namespace CT
       in += num_detectors;
     }
     
-    // std::cout << "End Ramp Filter\n";
     fftw_free(out);
-    // std::cout << "Free Ramp Filter\n";
+  }
+
+  // Shepp-Logan specification of sync-windowed ramp filter in time domain
+  void Scanner::rampFilterSL(double *in)
+  {
+    fftw_complex *out, *ramp;
+    out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (num_detectors/2 + 1));
+    ramp = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (num_detectors/2 + 1));
+    fftw_plan fwd, inv, ramp_plan;
+
+    // Ramp filter in time domain
+    double *filter;
+    filter = (double *) malloc(sizeof(double) * num_detectors);
+    const double pi_squared = 3.1415926535 * 3.1415926535;
+    double t_squared = (double)num_detectors*num_detectors;
+    for(int i=0; i<num_detectors; i++)
+    {
+      filter[i] = -2 / (pi_squared * t_squared * (4*i*i - 1));
+    }
+
+    // Transform ramp to freq domain
+    ramp_plan = fftw_plan_dft_r2c_1d(num_detectors, filter, ramp, FFTW_ESTIMATE);
+    fftw_execute(ramp_plan);
+    fftw_destroy_plan(ramp_plan);
+
+    // Perform filtering
+    for(int i=0; i<num_views; i++)
+    {
+      fwd = fftw_plan_dft_r2c_1d(num_detectors, in, out, FFTW_ESTIMATE);
+      fftw_execute(fwd);
+      for(int j=0; j<(num_detectors/2 + 1); j++)
+      {
+        out[j][0] = out[j][0]*ramp[j][0] - out[j][1]*ramp[j][1];
+        out[j][1] = out[j][0]*ramp[j][1] + out[j][1]*ramp[j][0];
+      }
+      inv = fftw_plan_dft_c2r_1d(num_detectors, out, in, FFTW_ESTIMATE);
+      fftw_execute(inv);
+      fftw_destroy_plan(fwd);
+      fftw_destroy_plan(inv);
+      in += num_detectors;
+    }
+
+    fftw_free(out);
+    fftw_free(ramp);
   }
 }

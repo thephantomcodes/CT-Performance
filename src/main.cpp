@@ -160,9 +160,9 @@ void project(CT::Scanner& scanner, std::vector<double> *img, std::vector<double>
 
 int main(int argc, const char* argv[])
 {
-  int num_pixels = (argc <= 1) ? 128 : std::atoi(argv[1]);
-  int num_views = (argc <= 2) ? 128 : std::atoi(argv[2]);
-  int num_detectors = (argc <= 3) ? 128 : std::atoi(argv[3]);
+  int num_pixels = (argc <= 1) ? 256 : std::atoi(argv[1]);
+  int num_views = (argc <= 2) ? 256 : std::atoi(argv[2]);
+  int num_detectors = (argc <= 3) ? 256 : std::atoi(argv[3]);
   double fov = (argc <= 4) ? 360.0 : (double)std::atof(argv[4]);
   std::string input_img = (argc <= 5) ? "phantom_256" : argv[5];
   std::string operation = (argc <= 6) ? "p" : argv[6];
@@ -250,10 +250,15 @@ int main(int argc, const char* argv[])
   {
     std::cout << "Ramp Filtering\n";
     start = std::chrono::system_clock::now();
-    scanner.rampFilter(sinogram.data());
+    scanner.rampFilterSL(sinogram.data());
     end = std::chrono::system_clock::now(); 
     elapsed_seconds = end - start;
     std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+
+    writePpmHeader("output/a.ppm", scanner.num_detectors, scanner.num_views);
+    sino_max = *std::max_element(sinogram.begin(), sinogram.end());
+    sino_min = *std::min_element(sinogram.begin(), sinogram.end());
+    writePpmData("output/a.ppm", sinogram, total_detectors, sino_max, sino_min);
   }
   
 ////////////////////////
