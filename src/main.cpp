@@ -250,15 +250,16 @@ int main(int argc, const char* argv[])
   {
     std::cout << "Ramp Filtering\n";
     start = std::chrono::system_clock::now();
-    scanner.rampFilterSL(sinogram.data());
+    scanner.rampFilterHilbert(sinogram.data());
     end = std::chrono::system_clock::now(); 
     elapsed_seconds = end - start;
     std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
 
-    writePpmHeader("output/a.ppm", scanner.num_detectors, scanner.num_views);
+    std::string fname_filt_out = fname_fp_out + "_filt.ppm";
+    writePpmHeader(fname_filt_out, scanner.num_detectors, scanner.num_views);
     sino_max = *std::max_element(sinogram.begin(), sinogram.end());
     sino_min = *std::min_element(sinogram.begin(), sinogram.end());
-    writePpmData("output/a.ppm", sinogram, total_detectors, sino_max, sino_min);
+    writePpmData(fname_filt_out, sinogram, total_detectors, sino_max, sino_min);
   }
   
 ////////////////////////

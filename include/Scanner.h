@@ -54,6 +54,7 @@ namespace CT
       void project(std::vector<double> *img, std::vector<double> *sinogram, int view_begin, int view_end, ProjectionDirection projectionDirection);
       void rampFilter(double *in);
       void rampFilterSL(double *in);
+      void rampFilterHilbert(double *in);
       void PrintProjectionParameters();
 
     private:

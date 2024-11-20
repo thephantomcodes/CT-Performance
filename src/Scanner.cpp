@@ -1,7 +1,10 @@
 #include "Scanner.h"
 #include <iostream>
 #include <cmath>
+#include <cstring>
 #include <fftw3.h>
+
+#define PI (3.1415926535)
 
 namespace CT
 {
@@ -165,7 +168,7 @@ namespace CT
     fftw_free(out);
   }
 
-  // Shepp-Logan specification of sync-windowed ramp filter in time domain
+  // Shepp-Logan specification of sinc-windowed ramp filter in time domain
   void Scanner::rampFilterSL(double *in)
   {
     fftw_complex *out, *ramp;
@@ -176,7 +179,7 @@ namespace CT
     // Ramp filter in time domain
     double *filter;
     filter = (double *) malloc(sizeof(double) * num_detectors);
-    const double pi_squared = 3.1415926535 * 3.1415926535;
+    const double pi_squared = PI * PI;
     double t_squared = (double)num_detectors*num_detectors;
     for(int i=0; i<num_detectors; i++)
     {
@@ -207,5 +210,93 @@ namespace CT
 
     fftw_free(out);
     fftw_free(ramp);
+  }
+
+  // Perform ramp filtering by factoring filter into differentiator and Hilbert operator
+  void Scanner::rampFilterHilbert(double *in)
+  {
+    // Determine signal lengths
+    int n = num_detectors;
+    // Padded signal length for Tricomi inversion of Hilbert
+    int m = 3*n-2;
+    // Real FFT uses symmetry to use half the data for output
+    int p = m/2 + 1;
+
+    fftw_complex *out, *kernel_out;
+    out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * p);
+    kernel_out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * p);
+    fftw_plan fwd, inv, kernel_plan;
+
+    // Define Hilbert kernel
+    double *kernel = (double *)calloc(m, sizeof(double));
+    for(int i = 1; i<n; i+=2){
+      kernel[i] = 2/(i* PI);
+    }
+    for(int i = m-n-1; i<m; i+=2){
+      kernel[i] = 2/((i-m) * PI);
+    }
+
+    // Transform kernel to freq domain
+    kernel_plan = fftw_plan_dft_r2c_1d(m, kernel, kernel_out, FFTW_ESTIMATE);
+    fftw_execute(kernel_plan);
+
+    // Create space for padded input signal, calloc fills with zeros
+    double *in_padded = (double *)calloc(m, sizeof(double));
+
+    // Ramp filter(in) = hilbert of d(in)/dn
+    for(int i=0; i<num_views; i++)
+    {
+      // Compute first difference of input signal (one row of sinogram)
+      for(int j=1; j<n; j++) 
+        in_padded[j] = in[j+1] - in[j];
+
+      // Transform input to freq domain
+      fwd = fftw_plan_dft_r2c_1d(m, in_padded, out, FFTW_ESTIMATE);
+      fftw_execute(fwd);
+
+      // Perform Hilbert transform (convolution) in freq domain
+      for(int j=0; j<p; j++)
+      {
+        // (a+bi) * (c + di) = (ac - bd) + (ad + cb)i
+        out[j][0] = out[j][0]*kernel_out[j][0] - out[j][1]*kernel_out[j][1];
+        out[j][1] = out[j][0]*kernel_out[j][1] + out[j][1]*kernel_out[j][0];
+      }
+
+      // Invert previous transform to time domain
+      inv = fftw_plan_dft_c2r_1d(num_detectors, out, in_padded, FFTW_ESTIMATE);
+      fftw_execute(inv);
+
+      // Clean up memory and advance ptr to next sinogram row.
+      fftw_destroy_plan(fwd);
+      fftw_destroy_plan(inv);
+      std::memcpy(in, in_padded, n);
+      for(int i=0; i<n; i++)
+        in[i] *= 1.0/(2.0 * PI);
+      std::memset(in_padded, 0x00, m*sizeof(double));
+      in += num_detectors;
+    }
+
+    // for(int i=0; i<n; i++)
+    // {
+    //   printf("%d. %f - %f = %f == %f ? %d\n", i, in[i], in[i+1], in[i] - in[i+1], in_padded[i], (in[i] - in[i+1]) == in_padded[i]);
+    // }
+
+    free(kernel);
+    free(in_padded);
+    fftw_destroy_plan(kernel_plan);
+    fftw_free(out);
+    fftw_free(kernel_out);
+    
+    // Show me that funky stuff
+    // for(int i = 0; i<m; i++){
+    //   printf("%f, ", kernel[i]);
+    // }
+    
+    // %Use FFT to perform convolution and return inverse
+    // F = fft(f, M);
+    // H = fft(h, M);
+    // FH = F .* H;
+    // fh = ifft(FH);
+    // fh = fh(1:N);
   }
 }
