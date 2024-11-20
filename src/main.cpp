@@ -175,6 +175,9 @@ int main(int argc, const char* argv[])
   std::string img_out_file_prefix = "output/img_" + input_img;
   std::string sart_out_file_prefix = "sart_output/sart_" + input_img;
   std::string sart_weight_prefix = "sart_weights/sart_weight_" + input_img;
+  std::string fname_fp_out;
+  double _max;
+  double _min;
   
   auto scanner = CT::Scanner(50.0, 40.0, num_pixels, num_views, num_detectors, 10.0, fov, 0.0);
   scanner.PrintProjectionParameters();
@@ -204,7 +207,7 @@ int main(int argc, const char* argv[])
 // Gaussian Noise
 ////////////////////////
 
-  if(operation == "g")
+  if(operation.find("g") != std::string::npos)
   {
     std::cout << "Adding Gaussian noise.\n";
     //use fov as std_dev
@@ -220,9 +223,9 @@ int main(int argc, const char* argv[])
     writeFile(guass_out_prefix + ".dat", img, total_pixels);
 
     writePpmHeader(guass_out_prefix + ".ppm", scanner.num_pixels, scanner.num_pixels);
-    double img_max = *std::max_element(img.begin(), img.end());
-    double img_min = *std::min_element(img.begin(), img.end());
-    writePpmData(guass_out_prefix + ".ppm", img, total_pixels, img_max, img_min);
+    _max = *std::max_element(img.begin(), img.end());
+    _min = *std::min_element(img.begin(), img.end());
+    writePpmData(guass_out_prefix + ".ppm", img, total_pixels, _max, _min);
     return 0;
   }
   
@@ -230,14 +233,17 @@ int main(int argc, const char* argv[])
 // Forward Projection
 ////////////////////////
   
+if(operation.find("p") != std::string::npos)
+{
   std::cout << "Forward projection\n";
   project(scanner, &img, &sinogram, CT::ProjectionDirection::Forward, thread_count);
   
-  std::string fname_fp_out = out_file_prefix + "_" + std::to_string(scanner.num_views) + "_" + std::to_string(scanner.num_detectors) + ".ppm";
+  fname_fp_out = out_file_prefix + "_" + std::to_string(scanner.num_views) + "_" + std::to_string(scanner.num_detectors) + ".ppm";
   writePpmHeader(fname_fp_out, scanner.num_detectors, scanner.num_views);
-  double sino_max = *std::max_element(sinogram.begin(), sinogram.end());
-  double sino_min = *std::min_element(sinogram.begin(), sinogram.end());
-  writePpmData(fname_fp_out, sinogram, total_detectors, sino_max, sino_min);
+  _max = *std::max_element(sinogram.begin(), sinogram.end());
+  _min = *std::min_element(sinogram.begin(), sinogram.end());
+  writePpmData(fname_fp_out, sinogram, total_detectors, _max, _min);
+}
   
 ////////////////////////
 // Ramp Filtering
@@ -246,27 +252,27 @@ int main(int argc, const char* argv[])
   std::chrono::time_point<std::chrono::system_clock> start, end;
   std::chrono::duration<double> elapsed_seconds;
 
-  if(operation == "f")
+  if(operation.find("f") != std::string::npos)
   {
     std::cout << "Ramp Filtering\n";
     start = std::chrono::system_clock::now();
-    scanner.rampFilterHilbert(sinogram.data());
+    scanner.rampFilter(sinogram.data());
     end = std::chrono::system_clock::now(); 
     elapsed_seconds = end - start;
     std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
 
     std::string fname_filt_out = fname_fp_out + "_filt.ppm";
     writePpmHeader(fname_filt_out, scanner.num_detectors, scanner.num_views);
-    sino_max = *std::max_element(sinogram.begin(), sinogram.end());
-    sino_min = *std::min_element(sinogram.begin(), sinogram.end());
-    writePpmData(fname_filt_out, sinogram, total_detectors, sino_max, sino_min);
+    _max = *std::max_element(sinogram.begin(), sinogram.end());
+    _min = *std::min_element(sinogram.begin(), sinogram.end());
+    writePpmData(fname_filt_out, sinogram, total_detectors, _max, _min);
   }
   
 ////////////////////////
 // Back Projection
 ////////////////////////
 
-  if((operation == "f") || (operation == "b"))
+  if(operation.find("b") != std::string::npos)
   {
     std::cout << "Back projection\n";
     project(scanner, &img, &sinogram, CT::ProjectionDirection::Backward, thread_count);
@@ -274,16 +280,16 @@ int main(int argc, const char* argv[])
     std::string fname_bp_out = img_out_file_prefix + "_" + std::to_string(scanner.num_views) + "_" + std::to_string(scanner.num_detectors) + ".ppm";
     writePpmHeader(fname_bp_out, scanner.num_pixels, scanner.num_pixels);
     // std::cout << "Back projection header done\n";
-    double img_max = *std::max_element(img.begin(), img.end());
-    double img_min = *std::min_element(img.begin(), img.end());
-    writePpmData(fname_bp_out, img, total_pixels, img_max, img_min);
+    _max = *std::max_element(img.begin(), img.end());
+    _min = *std::min_element(img.begin(), img.end());
+    writePpmData(fname_bp_out, img, total_pixels, _max, _min);
   }
 
 ////////////////////////
 // SART
 ////////////////////////
   
-  if(operation == "s")
+  if(operation.find("s") != std::string::npos)
   {
     readWeightData(sart_weight_prefix, scanner, relax_param);
 
@@ -321,8 +327,8 @@ int main(int argc, const char* argv[])
         .append(".ppm");
 
       writePpmHeader(sart_out_fname, scanner.num_pixels, scanner.num_pixels);
-      double _max = *std::max_element(img.begin(), img.end());
-      double _min = *std::min_element(img.begin(), img.end());
+      _max = *std::max_element(img.begin(), img.end());
+      _min = *std::min_element(img.begin(), img.end());
       std::cout<< "img "  << _min << " - " << _max << "\n";
       writePpmData(sart_out_fname, img, total_pixels, _max, _min);
     }
