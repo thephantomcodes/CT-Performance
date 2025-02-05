@@ -167,8 +167,9 @@ int main(int argc, const char* argv[])
   std::string input_img = (argc <= 5) ? "phantom_256" : argv[5];
   std::string operation = (argc <= 6) ? "p" : argv[6];
   int thread_count = (argc <= 7) ? 1 : std::atoi(argv[7]);
-  int sart_iter = (argc <= 8) ? 5 : std::atoi(argv[8]);
-  double relax_param = (argc <= 9) ? 1.0 : (double)std::atof(argv[9]);
+  double noise_param = (argc <= 8) ? 1.0 : (double)std::atof(argv[8]);
+  int sart_iter = (argc <= 9) ? 5 : std::atoi(argv[9]);
+  double relax_param = (argc <= 10) ? 1.0 : (double)std::atof(argv[10]);
 
   std::string in_file_prefix = "input/" + input_img;
   std::string out_file_prefix = "output/sino_" + input_img;
@@ -209,24 +210,21 @@ int main(int argc, const char* argv[])
 
   if(operation.find("g") != std::string::npos)
   {
-    std::cout << "Adding Gaussian noise.\n";
-    //use fov as std_dev
-    double std_dev = fov;
+    std::cout << "Adding Gaussian noise std_dev = " << noise_param << "\n";
     std::random_device rd{};
     std::mt19937 gen{rd()};
-    std::normal_distribution d{0.0, std_dev};
+    std::normal_distribution d{0.0, noise_param};
     for(int i=0; i<total_pixels; i++)
     {
       img[i] += d(gen);
     }
-    std::string guass_out_prefix = in_file_prefix + "_gauss_" + std::to_string(std_dev);
+    std::string guass_out_prefix = in_file_prefix + "_gauss_" + std::to_string(noise_param);
     writeFile(guass_out_prefix + ".dat", img, total_pixels);
 
     writePpmHeader(guass_out_prefix + ".ppm", scanner.num_pixels, scanner.num_pixels);
     _max = *std::max_element(img.begin(), img.end());
     _min = *std::min_element(img.begin(), img.end());
     writePpmData(guass_out_prefix + ".ppm", img, total_pixels, _max, _min);
-    return 0;
   }
   
 ////////////////////////
@@ -238,12 +236,40 @@ if(operation.find("p") != std::string::npos)
   std::cout << "Forward projection\n";
   project(scanner, &img, &sinogram, CT::ProjectionDirection::Forward, thread_count);
   
-  fname_fp_out = out_file_prefix + "_" + std::to_string(scanner.num_views) + "_" + std::to_string(scanner.num_detectors) + ".ppm";
-  writePpmHeader(fname_fp_out, scanner.num_detectors, scanner.num_views);
+  fname_fp_out = out_file_prefix + "_" + std::to_string(scanner.num_views) + "_" + std::to_string(scanner.num_detectors);
+  writeFile(fname_fp_out + ".dat", sinogram, total_detectors);
+
+  writePpmHeader(fname_fp_out + ".ppm", scanner.num_detectors, scanner.num_views);
   _max = *std::max_element(sinogram.begin(), sinogram.end());
   _min = *std::min_element(sinogram.begin(), sinogram.end());
-  writePpmData(fname_fp_out, sinogram, total_detectors, _max, _min);
+  writePpmData(fname_fp_out + ".ppm", sinogram, total_detectors, _max, _min);
 }
+
+////////////////////////
+// Poisson Noise
+////////////////////////
+  
+  if(operation.find("n") != std::string::npos)
+  {
+    std::cout << "Adding Poisson noise.\n";
+    std::random_device rd{};
+    std::mt19937 gen{rd()};
+    
+    int sino_int;
+    for(int i=0; i<total_pixels; i++)
+    {
+      sino_int = (int)(noise_param * sinogram[i]);
+      std::poisson_distribution<> d(sino_int);
+      sinogram[i] = (double)d(gen)/noise_param;
+    }
+    std::string poisson_out_prefix = in_file_prefix + "_poisson_" + std::to_string(noise_param);
+    writeFile(poisson_out_prefix + ".dat", sinogram, total_detectors);
+
+    writePpmHeader(poisson_out_prefix + ".ppm", scanner.num_detectors, scanner.num_views);
+    _max = *std::max_element(sinogram.begin(), sinogram.end());
+    _min = *std::min_element(sinogram.begin(), sinogram.end());
+    writePpmData(poisson_out_prefix + ".ppm", sinogram, total_detectors, _max, _min);
+  }
   
 ////////////////////////
 // Ramp Filtering
