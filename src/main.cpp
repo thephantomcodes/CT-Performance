@@ -160,12 +160,12 @@ void project(CT::Scanner& scanner, std::vector<double> *img, std::vector<double>
 
 int main(int argc, const char* argv[])
 {
-  int num_pixels = (argc <= 1) ? 256 : std::atoi(argv[1]);
-  int num_views = (argc <= 2) ? 256 : std::atoi(argv[2]);
-  int num_detectors = (argc <= 3) ? 256 : std::atoi(argv[3]);
-  double fov = (argc <= 4) ? 360.0 : (double)std::atof(argv[4]);
-  std::string input_img = (argc <= 5) ? "phantom_256" : argv[5];
-  std::string operation = (argc <= 6) ? "p" : argv[6];
+  std::string operation = (argc <= 1) ? "p" : argv[1];
+  std::string input_img = (argc <= 2) ? "phantom_256" : argv[2];
+  int num_pixels = (argc <= 3) ? 256 : std::atoi(argv[3]);
+  int num_views = (argc <= 4) ? 256 : std::atoi(argv[4]);
+  int num_detectors = (argc <= 5) ? 256 : std::atoi(argv[5]);
+  double fov = (argc <= 6) ? 360.0 : (double)std::atof(argv[6]);
   int thread_count = (argc <= 7) ? 1 : std::atoi(argv[7]);
   double noise_param = (argc <= 8) ? 1.0 : (double)std::atof(argv[8]);
   int sart_iter = (argc <= 9) ? 5 : std::atoi(argv[9]);
@@ -175,7 +175,7 @@ int main(int argc, const char* argv[])
   std::string out_file_prefix = "output/sino_" + input_img;
   std::string img_out_file_prefix = "output/img_" + input_img;
   std::string sart_out_file_prefix = "sart_output/sart_" + input_img;
-  std::string sart_weight_prefix = "sart_weights/sart_weight_" + input_img;
+  std::string sart_weight_prefix = "sart_weights/sart_weight_";
   std::string fname_fp_out;
   double _max;
   double _min;
@@ -190,13 +190,17 @@ int main(int argc, const char* argv[])
   sart_weight_prefix
     .append(std::to_string(scanner.num_pixels))
     .append("_")
+    .append(std::to_string(scanner.num_views))
+    .append("_")
+    .append(std::to_string(scanner.num_detectors))
+    .append("_")
     .append(std::to_string((int)scanner.field_of_view))
     .append("_")
     .append(std::to_string((int)scanner.detector_length))
     .append(".dat");
 
 #ifdef GEN_SART_WEIGHTS
-  scanner.project(&img, &sinogram, 0, scanner.num_views, CT::ProjectionDirection::Forward, thread_count);
+  scanner.project(&img, &sinogram, 0, scanner.num_views, CT::ProjectionDirection::Forward);
   printSums(scanner);
   writeWeightData(sart_weight_prefix, scanner);
   return 0;

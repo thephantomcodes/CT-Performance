@@ -32,8 +32,8 @@
 *.app
 
 # images
-output/*.ppm
-input/*.ppm
+output/*
+input/*
 sart_output/*.ppm
 
 #cmake junk
