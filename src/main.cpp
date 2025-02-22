@@ -9,7 +9,18 @@
 #include <string>
 #include <thread>
 #include <random>
+#include <time.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "Scanner.h"
+
+void get_timestamp(char *buffer){
+   time_t rawtime;
+   struct tm * timeinfo;
+   time (&rawtime);
+   timeinfo = localtime (&rawtime);
+   strftime (buffer,16,"%G%m%d%H%M%S",timeinfo); 
+}
 
 void printSums(CT::Scanner& scanner)
 {
@@ -158,6 +169,33 @@ void project(CT::Scanner& scanner, std::vector<double> *img, std::vector<double>
   delete[] t;
 }
 
+void print_cmd_args(std::string operation, std::string input_img,
+  int num_pixels, int num_views, int num_detectors,
+  double fov, int thread_count, double noise_param,
+  int sart_iter, double relax_param, std::string filepath)
+{
+  std::ofstream fs;
+  fs.open(filepath, std::fstream::out);
+  if (!fs.is_open())
+  {
+    std::cerr << "Can't find output file " << filepath << "\n";
+    exit(-1);
+  }
+  
+  fs << "operation " << operation << "\r\n"
+    << "input_img " << input_img << "\r\n"
+    << "num_pixels " << num_pixels << "\r\n"
+    << "num_views " << num_views << "\r\n"
+    << "num_detectors " << num_detectors << "\r\n"
+    << "fov " << fov << "\r\n"
+    << "thread_count " << thread_count << "\r\n"
+    << "noise_param " << noise_param << "\r\n"
+    << "sart_iter " << sart_iter << "\r\n"
+    << "relax_param " << relax_param << "\r\n";
+
+  fs.close();
+}
+
 int main(int argc, const char* argv[])
 {
   std::string operation = (argc <= 1) ? "p" : argv[1];
@@ -170,11 +208,21 @@ int main(int argc, const char* argv[])
   double noise_param = (argc <= 8) ? 1.0 : (double)std::atof(argv[8]);
   int sart_iter = (argc <= 9) ? 5 : std::atoi(argv[9]);
   double relax_param = (argc <= 10) ? 1.0 : (double)std::atof(argv[10]);
+  char timestamp[16];
+
+  //make output directory
+  get_timestamp(timestamp);
+  std::cout << "TS: " << timestamp << "\r\n";
+  std::string dirpath = "output/" + std::string(timestamp);
+  mkdir(dirpath.c_str(), 0777);
+
+  print_cmd_args(operation, input_img, num_pixels, num_views, num_detectors, 
+    fov, thread_count, noise_param, sart_iter, relax_param, dirpath + "/cmd_args.txt");
 
   std::string in_file_prefix = "input/" + input_img;
-  std::string out_file_prefix = "output/sino_" + input_img;
-  std::string img_out_file_prefix = "output/img_" + input_img;
-  std::string sart_out_file_prefix = "sart_output/sart_" + input_img;
+  std::string out_file_prefix = dirpath + "/sino_" + input_img;
+  std::string img_out_file_prefix = dirpath + "/img_" + input_img;
+  std::string sart_out_file_prefix = dirpath +"/sart_" + input_img;
   std::string sart_weight_prefix = "sart_weights/sart_weight_";
   std::string fname_fp_out;
   double _max;
@@ -222,7 +270,7 @@ int main(int argc, const char* argv[])
     {
       img[i] += d(gen);
     }
-    std::string guass_out_prefix = in_file_prefix + "_gauss_" + std::to_string(noise_param);
+    std::string guass_out_prefix = img_out_file_prefix + "_gauss_" + std::to_string(noise_param);
     writeFile(guass_out_prefix + ".dat", img, total_pixels);
 
     writePpmHeader(guass_out_prefix + ".ppm", scanner.num_pixels, scanner.num_pixels);
@@ -266,7 +314,7 @@ if(operation.find("p") != std::string::npos)
       std::poisson_distribution<> d(sino_int);
       sinogram[i] = (double)d(gen)/noise_param;
     }
-    std::string poisson_out_prefix = in_file_prefix + "_poisson_" + std::to_string(noise_param);
+    std::string poisson_out_prefix = out_file_prefix + "_poisson_" + std::to_string(noise_param);
     writeFile(poisson_out_prefix + ".dat", sinogram, total_detectors);
 
     writePpmHeader(poisson_out_prefix + ".ppm", scanner.num_detectors, scanner.num_views);
@@ -291,11 +339,13 @@ if(operation.find("p") != std::string::npos)
     elapsed_seconds = end - start;
     std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
 
-    std::string fname_filt_out = fname_fp_out + "_filt.ppm";
-    writePpmHeader(fname_filt_out, scanner.num_detectors, scanner.num_views);
+    std::string fname_filt_out = fname_fp_out + "_filt";
+    writeFile(fname_filt_out + ".dat", sinogram, total_detectors);
+
+    writePpmHeader(fname_filt_out + ".ppm", scanner.num_detectors, scanner.num_views);
     _max = *std::max_element(sinogram.begin(), sinogram.end());
     _min = *std::min_element(sinogram.begin(), sinogram.end());
-    writePpmData(fname_filt_out, sinogram, total_detectors, _max, _min);
+    writePpmData(fname_filt_out + ".ppm", sinogram, total_detectors, _max, _min);
   }
   
 ////////////////////////
@@ -307,12 +357,14 @@ if(operation.find("p") != std::string::npos)
     std::cout << "Back projection\n";
     project(scanner, &img, &sinogram, CT::ProjectionDirection::Backward, thread_count);
     
-    std::string fname_bp_out = img_out_file_prefix + "_" + std::to_string(scanner.num_views) + "_" + std::to_string(scanner.num_detectors) + ".ppm";
-    writePpmHeader(fname_bp_out, scanner.num_pixels, scanner.num_pixels);
+    std::string fname_bp_out = img_out_file_prefix + "_" + std::to_string(scanner.num_views) + "_" + std::to_string(scanner.num_detectors);
+    writeFile(fname_bp_out + ".dat", img, total_pixels);
+
+    writePpmHeader(fname_bp_out + ".ppm", scanner.num_pixels, scanner.num_pixels);
     // std::cout << "Back projection header done\n";
     _max = *std::max_element(img.begin(), img.end());
     _min = *std::min_element(img.begin(), img.end());
-    writePpmData(fname_bp_out, img, total_pixels, _max, _min);
+    writePpmData(fname_bp_out + ".ppm", img, total_pixels, _max, _min);
   }
 
 ////////////////////////
@@ -353,14 +405,15 @@ if(operation.find("p") != std::string::npos)
         .append("_")
         .append(std::to_string((int)scanner.field_of_view))
         .append("_")
-        .append(std::to_string(i))
-        .append(".ppm");
+        .append(std::to_string(i));
 
-      writePpmHeader(sart_out_fname, scanner.num_pixels, scanner.num_pixels);
+      writeFile(sart_out_fname + ".dat", img, total_pixels);
+
+      writePpmHeader(sart_out_fname + ".ppm", scanner.num_pixels, scanner.num_pixels);
       _max = *std::max_element(img.begin(), img.end());
       _min = *std::min_element(img.begin(), img.end());
       std::cout<< "img "  << _min << " - " << _max << "\n";
-      writePpmData(sart_out_fname, img, total_pixels, _max, _min);
+      writePpmData(sart_out_fname + ".ppm", img, total_pixels, _max, _min);
     }
   }
 
