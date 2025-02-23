@@ -129,13 +129,13 @@ void readWeightData(std::string fname, CT::Scanner &scanner, double relax_param)
     exit(-1);
   }
 
-  for(int i=0; i<scanner.num_pixels*scanner.num_pixels; i++)
+  for(int i=0; i<scanner.num_views*scanner.num_detectors; i++)
   {
     fs.read(reinterpret_cast<char*>(&buffer), sizeof(double));
     scanner.row_sums[i] = 1.0 / (buffer + 0.000001);
   }
 
-  for(int i=0; i<scanner.num_views*scanner.num_detectors; i++)
+  for(int i=0; i<scanner.num_pixels*scanner.num_pixels; i++)
   {
     fs.read(reinterpret_cast<char*>(&buffer), sizeof(double));
     scanner.col_sums[i] = relax_param / (buffer + 0.000001);
