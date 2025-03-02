@@ -276,27 +276,10 @@ namespace CT
       in += num_detectors;
     }
 
-    // for(int i=0; i<n; i++)
-    // {
-    //   printf("%d. %f - %f = %f == %f ? %d\n", i, in[i], in[i+1], in[i] - in[i+1], in_padded[i], (in[i] - in[i+1]) == in_padded[i]);
-    // }
-
     free(kernel);
     free(in_padded);
     fftw_destroy_plan(kernel_plan);
     fftw_free(out);
     fftw_free(kernel_out);
-    
-    // Show me that funky stuff
-    // for(int i = 0; i<m; i++){
-    //   printf("%f, ", kernel[i]);
-    // }
-    
-    // %Use FFT to perform convolution and return inverse
-    // F = fft(f, M);
-    // H = fft(h, M);
-    // FH = F .* H;
-    // fh = ifft(FH);
-    // fh = fh(1:N);
   }
 }

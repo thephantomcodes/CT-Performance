@@ -45,3 +45,6 @@ Makefile
 
 #debug output
 a.txt
+
+#valgrind output
+cachegrind.out.*
