@@ -265,7 +265,7 @@ int main(int argc, const char* argv[])
     std::cout << "Adding Gaussian noise std_dev = " << noise_param << "\n";
     std::random_device rd{};
     std::mt19937 gen{rd()};
-    std::normal_distribution d{0.0, noise_param};
+    std::normal_distribution<double> d{0.0, noise_param};
     for(int i=0; i<total_pixels; i++)
     {
       img[i] += d(gen);
@@ -311,7 +311,7 @@ if(operation.find("p") != std::string::npos)
     for(int i=0; i<total_pixels; i++)
     {
       sino_int = (int)(noise_param * sinogram[i]);
-      std::poisson_distribution<> d(sino_int);
+      std::poisson_distribution<int> d(sino_int);
       sinogram[i] = (double)d(gen)/noise_param;
     }
     std::string poisson_out_prefix = out_file_prefix + "_poisson_" + std::to_string(noise_param);
