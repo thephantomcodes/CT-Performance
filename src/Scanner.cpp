@@ -3,8 +3,15 @@
 #include <cmath>
 #include <cstring>
 #include <fftw3.h>
+#include <stdint.h>
+#include <string>
+
+#ifdef INSTR_RDTSC
+#include <x86intrin.h>
+#endif
 
 #define PI (3.1415926535)
+#define TO_RADIANS(X) (X*(PI/180.0))
 
 namespace CT
 {
@@ -41,9 +48,19 @@ namespace CT
   double Scanner::projectPoint(double src[2], double pt[2], double x)
   {
     if(src[0] == pt[0]) return pt[0];
-    
+
+    #ifdef INSTR_RDTSC
+    uint64_t st = __rdtsc();
+    #endif
+
     double m = (src[1] - pt[1]) / (src[0] - pt[0]);
     double b = pt[1] - m*pt[0];
+
+    #ifdef INSTR_RDTSC
+    tick_counter[ProjectPoint] += __rdtsc()-st;
+    call_counter[ProjectPoint]++;
+    #endif
+
     return m*x + b;
   }
 
@@ -57,48 +74,114 @@ namespace CT
 
   bool Scanner::intervalsIntersect(double interval1[2], double interval2[2])
   {
-    return interval1[0] < interval2[1] && interval2[0] < interval1[1];
+  #ifdef INSTR_RDTSC
+    uint64_t st = __rdtsc();
+  #endif
+    bool b = interval1[0] < interval2[1] && interval2[0] < interval1[1];
+
+  #ifdef INSTR_RDTSC
+    tick_counter[IntervalsIntersect] += __rdtsc()-st;
+    call_counter[IntervalsIntersect]++;
+  #endif
+    return b;
   }
 
   void Scanner::rotatePoint(double point[2], double theta)
   {
-    theta = 3.14159*theta/180.0;
+  #ifdef INSTR_RDTSC
+    uint64_t st = __rdtsc();
+  #endif
+
+    theta = TO_RADIANS(theta);
     double point_copy[2] = {point[0], point[1]};
     double vec[2] = {cos(theta) , -sin(theta)};
     point[0] = point_copy[0]*vec[0] + point_copy[1]*vec[1];
     vec[0] = sin(theta);
     vec[1] = cos(theta);
     point[1] = point_copy[0]*vec[0] + point_copy[1]*vec[1];
+
+  #ifdef INSTR_RDTSC
+    tick_counter[RotatePoint] += __rdtsc()-st;
+    call_counter[RotatePoint]++;
+  #endif
+  }
+
+  void Scanner::rotatePoint(double point[2], double cos_theta, double sin_theta)
+  {
+  #ifdef INSTR_RDTSC
+    uint64_t st = __rdtsc();
+  #endif
+
+    // theta = TO_RADIANS(theta);
+    double point_copy[2] = {point[0], point[1]};
+    double vec[2] = {cos_theta , -sin_theta};
+    point[0] = point_copy[0]*vec[0] + point_copy[1]*vec[1];
+    vec[0] = sin_theta;
+    vec[1] = cos_theta;
+    point[1] = point_copy[0]*vec[0] + point_copy[1]*vec[1];
+
+  #ifdef INSTR_RDTSC
+    tick_counter[RotatePoint] += __rdtsc()-st;
+    call_counter[RotatePoint]++;
+  #endif
   }
 
   void Scanner::project(std::vector<double> *img, std::vector<double> *sinogram, int view_begin, int view_end, ProjectionDirection projectionDirection)
   {
+  #ifdef INSTR_RDTSC
+    uint64_t st;
+    uint64_t start = __rdtsc();
+  #endif
+
+    //for each view in thread
     for(int v=view_begin; v<view_end; v++)
     {
+      //calculate theta and determine if rotation and index swap are needed
       double theta = std::fmod(v*rotation_delta + phase, 360.0);
       bool swap_indices = (theta > 45.0 && theta <= 135.0) || (theta > 225.0 && theta <= 315.0);
       theta -= ((double)swap_indices)*90.0;
 
+      //rotate src location by theta
       double src[] = {scanning_radius, 0.0};
-      rotatePoint(src, theta);
+      // rotatePoint(src, theta);
+      theta = TO_RADIANS(theta);
+      double cos_theta = cos(theta);
+      double sin_theta = sin(theta);
+      rotatePoint(src, cos_theta, sin_theta);
       
+      //for each detector
       for(int d=0; d<num_detectors; d++)
       {
+        //calculate detector boundaries and rotate by theta
         double det1[] = {-scanning_radius, det_begin - d*det_len};
         double det2[] = {-scanning_radius, det_begin - (d+1)*det_len};
-        rotatePoint(det1, theta);
-        rotatePoint(det2, theta);
+        // rotatePoint(det1, theta);
+        // rotatePoint(det2, theta);
+        rotatePoint(det1, cos_theta, sin_theta);
+        rotatePoint(det2, cos_theta, sin_theta);
         
+        //project detector boundaries to y-axis
+        //det_proj_interval contains y-intercepts of each point
         double det_proj_interval[2];
         projectInterval(src, det1, det2, 0, det_proj_interval);
+
+        #ifdef INSTR_RDTSC
+          st = __rdtsc();
+        #endif
+
+        double cos_correction1 = src[0]/std::sqrt((det_proj_interval[0] - src[1])*(det_proj_interval[0] - src[1]) + src[0]*src[0]);
+        double cos_correction2 = src[0]/std::sqrt((det_proj_interval[1] - src[1])*(det_proj_interval[1] - src[1]) + src[0]*src[0]);
+        double cos_correction = std::abs(0.5*(cos_correction1 + cos_correction2));
+          
+        #ifdef INSTR_RDTSC
+          tick_counter[CosCorrect] += __rdtsc()-st;
+          call_counter[CosCorrect]++;
+        #endif
         
+        //for each column
         for(int c=0; c<num_pixels; c++)
         {
           double px_x = (c+0.5)*px_width - col_begin;
-          double cos_correction1 = src[0]/std::sqrt((det_proj_interval[0] - src[1])*(det_proj_interval[0] - src[1]) + src[0]*src[0]);
-          double cos_correction2 = src[0]/std::sqrt((det_proj_interval[1] - src[1])*(det_proj_interval[1] - src[1]) + src[0]*src[0]);
-          double cos_correction = std::abs(0.5*(cos_correction1 + cos_correction2));
-          
           double pxb1 = (projectPoint(src, det1, px_x));
           double pxb2 = (projectPoint(src, det2, px_x));
           if(pxb1 > pxb2) std::swap(pxb1, pxb2);
@@ -115,6 +198,10 @@ namespace CT
             
             if(intervalsIntersect(px_proj_interval, det_proj_interval))
             {
+              #ifdef INSTR_RDTSC
+                st = __rdtsc();
+              #endif
+
               double det_width = det_proj_interval[1] - det_proj_interval[0];
               double det_px_overlap = std::min(det_proj_interval[1], px_proj_interval[1]) - std::max(det_proj_interval[0], px_proj_interval[0]); 
               double weight = det_px_overlap / (det_width * cos_correction);
@@ -126,20 +213,52 @@ namespace CT
                 (*sinogram)[sinogram_index] += weight * (*img)[img_index];
               else
                 (*img)[img_index] += weight * (*sinogram)[sinogram_index];
-              
+
+              #ifdef INSTR_RDTSC
+                tick_counter[StoreProjValue] += __rdtsc()-st;
+                call_counter[StoreProjValue]++;
+              #endif
+
               #ifdef GEN_SART_WEIGHTS
-              if(projectionDirection == ProjectionDirection::Forward)
-              {
-                row_sums[sinogram_index] += weight;
-                col_sums[img_index] += weight;
-              }
+                if(projectionDirection == ProjectionDirection::Forward)
+                {
+                  row_sums[sinogram_index] += weight;
+                  col_sums[img_index] += weight;
+                }
               #endif
             }
           }
         }
       }
     }
+
+    #ifdef INSTR_RDTSC
+      tick_counter[Total] += __rdtsc()-start;
+      call_counter[Total]++;
+      PrintTickCounts();
+    #endif
   }
+
+#ifdef INSTR_RDTSC
+  void Scanner::PrintTickCounts()
+  {
+    std::ios_base::fmtflags f( std::cout.flags() );
+    uint64_t sum = 0;
+    for(uint8_t i=ProjectPoint; i<NumOps; i++)
+    {
+      sum += tick_counter[i];
+      uint64_t ave_ticks = call_counter[i] ? tick_counter[i]/call_counter[i] : 0;
+      std::cout << std::setprecision(1) << std::scientific
+        << SubOpStrings[i] 
+        << "\t" << (double)tick_counter[i] 
+        << "\t" << (double)call_counter[i]
+        << "\t" << (double)ave_ticks 
+        << "\t" << (double)tick_counter[i]/tick_counter[Total] << "\n";
+    }
+    std::cout << "Sum " << (double)sum << " " << (double)tick_counter[Total]/sum << std::endl;
+    std::cout.flags( f );
+  }
+#endif
 
   // Direct specification of ramp filter in frequency domain
   void Scanner::rampFilter(double *in)

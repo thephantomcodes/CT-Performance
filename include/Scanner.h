@@ -11,6 +11,8 @@
 #include <chrono>
 #include <string>
 #include <thread>
+#include <stdint.h>
+#include <string>
 
 #undef GEN_SART_WEIGHTS
 
@@ -21,6 +23,21 @@ namespace CT
     Forward,
     Backward
   };
+
+#ifdef INSTR_RDTSC
+  enum SubOps
+  {
+    ProjectPoint = 0,
+    ProjectInterval,
+    IntervalsIntersect,
+    RotatePoint,
+    CosCorrect,
+    StoreProjValue,
+    Total,
+
+    NumOps,
+  };
+#endif
 
   class Scanner
   {
@@ -56,12 +73,30 @@ namespace CT
       void rampFilterSL(double *in);
       void rampFilterHilbert(double *in);
       void PrintProjectionParameters();
+    #ifdef INSTR_RDTSC
+      void PrintTickCounts();
+    #endif
 
     private:
       double projectPoint(double src[2], double pt[2], double x);
       void projectInterval(double src[2], double pt1[2], double pt2[2], double x, double interval[2]);
       bool intervalsIntersect(double interval1[2], double interval2[2]);
       void rotatePoint(double point[2], double theta);
+      void rotatePoint(double point[2], double cos_theta, double sin_theta);
+
+    #ifdef INSTR_RDTSC
+      uint64_t tick_counter[NumOps] = {0};
+      uint64_t call_counter[NumOps] = {0};
+      std::string SubOpStrings[NumOps] = {
+        "ProjectPoint",
+        "ProjectInterval",
+        "IntrvlIntersect",
+        "RotatePoint",
+        "CosCorrect",
+        "StoreProjValue",
+        "Total"
+      };
+    #endif
   };
 }
 
