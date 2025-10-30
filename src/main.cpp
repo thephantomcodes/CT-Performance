@@ -118,7 +118,7 @@ void writeFile(std::string fname, std::vector<double>& vec, int size)
 
 void readWeightData(std::string fname, CT::Scanner &scanner, double relax_param)
 {
-  const double weight_cap = 1.0;
+  // const double weight_cap = 1.0;
   double buffer;
   std::fstream fs;
   fs.open(fname, std::fstream::in | std::fstream::binary);
