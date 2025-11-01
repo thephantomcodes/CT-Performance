@@ -51,20 +51,20 @@ namespace CT
         , double field_of_view_
         , double phase_);
       
-      const double scanning_radius;
-      const double detector_length;
-      const int num_pixels;
-      const int num_views;
-      const int num_detectors;
-      const double phantom_radius;
-      const double field_of_view;
-      const double phase;
+      const double m_scanning_radius;
+      const double m_detector_length;
+      const int m_num_pixels;
+      const int m_num_views;
+      const int m_num_detectors;
+      const double m_phantom_radius;
+      const double m_field_of_view;
+      const double m_phase;
       
-      double det_len;
-      double det_begin;
-      double col_begin;
-      double px_width;
-      double rotation_delta;
+      double m_det_len;
+      double m_det_begin;
+      double m_col_begin;
+      double m_px_width;
+      double m_rotation_delta;
       std::vector<double> row_sums;
       std::vector<double> col_sums;
 
@@ -81,7 +81,7 @@ namespace CT
       double projectPoint(double src[2], double pt[2], double x);
       void projectInterval(double src[2], double pt1[2], double pt2[2], double x, double interval[2]);
       bool intervalsIntersect(double interval1[2], double interval2[2]);
-      void rotatePoint(double point[2], double theta);
+      // void rotatePoint(double point[2], double theta);
       void rotatePoint(double point[2], double cos_theta, double sin_theta);
 
     #ifdef INSTR_RDTSC

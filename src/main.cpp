@@ -129,13 +129,13 @@ void readWeightData(std::string fname, CT::Scanner &scanner, double relax_param)
     exit(-1);
   }
 
-  for(int i=0; i<scanner.num_views*scanner.num_detectors; i++)
+  for(int i=0; i<scanner.m_num_views*scanner.m_num_detectors; i++)
   {
     fs.read(reinterpret_cast<char*>(&buffer), sizeof(double));
     scanner.row_sums[i] = 1.0 / (buffer + 0.000001);
   }
 
-  for(int i=0; i<scanner.num_pixels*scanner.num_pixels; i++)
+  for(int i=0; i<scanner.m_num_pixels*scanner.m_num_pixels; i++)
   {
     fs.read(reinterpret_cast<char*>(&buffer), sizeof(double));
     scanner.col_sums[i] = relax_param / (buffer + 0.000001);
@@ -150,11 +150,11 @@ void project(CT::Scanner& scanner, std::vector<double> *img, std::vector<double>
   std::chrono::time_point<std::chrono::system_clock> start, end;
   start = std::chrono::system_clock::now();
   
-  std::cout << "threads: " << thread_count << " views: " << scanner.num_views << '\n';
+  std::cout << "threads: " << thread_count << " views: " << scanner.m_num_views << '\n';
   for(int i=0; i<thread_count; i++)
   {
-    t[i] = std::thread(&CT::Scanner::project, scanner, img, sinogram, i*scanner.num_views/thread_count, (i+1)*scanner.num_views/thread_count, projectionDirection);
-    std::cout << "thread: " << i << " start: " << (i)*scanner.num_views/thread_count << " end: " << (i+1)*scanner.num_views/thread_count << '\n';
+    t[i] = std::thread(&CT::Scanner::project, scanner, img, sinogram, i*scanner.m_num_views/thread_count, (i+1)*scanner.m_num_views/thread_count, projectionDirection);
+    std::cout << "thread: " << i << " start: " << (i)*scanner.m_num_views/thread_count << " end: " << (i+1)*scanner.m_num_views/thread_count << '\n';
   }
 
   for(int i=0; i<thread_count; i++)
@@ -230,25 +230,25 @@ int main(int argc, const char* argv[])
   
   auto scanner = CT::Scanner(50.0, 40.0, num_pixels, num_views, num_detectors, 10.0, fov, 0.0);
   scanner.PrintProjectionParameters();
-  int total_pixels = scanner.num_pixels*scanner.num_pixels;
-  int total_detectors = scanner.num_detectors*scanner.num_views;
+  int total_pixels = scanner.m_num_pixels*scanner.m_num_pixels;
+  int total_detectors = scanner.m_num_detectors*scanner.m_num_views;
   std::vector<double> img(total_pixels);
   std::vector<double> sinogram(total_detectors);
   readFile(in_file_prefix + ".dat", img, total_pixels);
   sart_weight_prefix
-    .append(std::to_string(scanner.num_pixels))
+    .append(std::to_string(scanner.m_num_pixels))
     .append("_")
-    .append(std::to_string(scanner.num_views))
+    .append(std::to_string(scanner.m_num_views))
     .append("_")
-    .append(std::to_string(scanner.num_detectors))
+    .append(std::to_string(scanner.m_num_detectors))
     .append("_")
-    .append(std::to_string((int)scanner.field_of_view))
+    .append(std::to_string((int)scanner.m_field_of_view))
     .append("_")
-    .append(std::to_string((int)scanner.detector_length))
+    .append(std::to_string((int)scanner.m_detector_length))
     .append(".dat");
 
 #ifdef GEN_SART_WEIGHTS
-  scanner.project(&img, &sinogram, 0, scanner.num_views, CT::ProjectionDirection::Forward);
+  scanner.project(&img, &sinogram, 0, scanner.m_num_views, CT::ProjectionDirection::Forward);
   printSums(scanner);
   writeWeightData(sart_weight_prefix, scanner);
   return 0;
@@ -273,7 +273,7 @@ int main(int argc, const char* argv[])
     std::string guass_out_prefix = img_out_file_prefix + "_gauss_" + std::to_string(noise_param);
     writeFile(guass_out_prefix + ".dat", img, total_pixels);
 
-    writePpmHeader(guass_out_prefix + ".ppm", scanner.num_pixels, scanner.num_pixels);
+    writePpmHeader(guass_out_prefix + ".ppm", scanner.m_num_pixels, scanner.m_num_pixels);
     _max = *std::max_element(img.begin(), img.end());
     _min = *std::min_element(img.begin(), img.end());
     writePpmData(guass_out_prefix + ".ppm", img, total_pixels, _max, _min);
@@ -288,10 +288,10 @@ if(operation.find("p") != std::string::npos)
   std::cout << "Forward projection\n";
   project(scanner, &img, &sinogram, CT::ProjectionDirection::Forward, thread_count);
   
-  fname_fp_out = out_file_prefix + "_" + std::to_string(scanner.num_views) + "_" + std::to_string(scanner.num_detectors);
+  fname_fp_out = out_file_prefix + "_" + std::to_string(scanner.m_num_views) + "_" + std::to_string(scanner.m_num_detectors);
   writeFile(fname_fp_out + ".dat", sinogram, total_detectors);
 
-  writePpmHeader(fname_fp_out + ".ppm", scanner.num_detectors, scanner.num_views);
+  writePpmHeader(fname_fp_out + ".ppm", scanner.m_num_detectors, scanner.m_num_views);
   _max = *std::max_element(sinogram.begin(), sinogram.end());
   _min = *std::min_element(sinogram.begin(), sinogram.end());
   writePpmData(fname_fp_out + ".ppm", sinogram, total_detectors, _max, _min);
@@ -317,7 +317,7 @@ if(operation.find("p") != std::string::npos)
     std::string poisson_out_prefix = out_file_prefix + "_poisson_" + std::to_string(noise_param);
     writeFile(poisson_out_prefix + ".dat", sinogram, total_detectors);
 
-    writePpmHeader(poisson_out_prefix + ".ppm", scanner.num_detectors, scanner.num_views);
+    writePpmHeader(poisson_out_prefix + ".ppm", scanner.m_num_detectors, scanner.m_num_views);
     _max = *std::max_element(sinogram.begin(), sinogram.end());
     _min = *std::min_element(sinogram.begin(), sinogram.end());
     writePpmData(poisson_out_prefix + ".ppm", sinogram, total_detectors, _max, _min);
@@ -342,7 +342,7 @@ if(operation.find("p") != std::string::npos)
     std::string fname_filt_out = fname_fp_out + "_filt";
     writeFile(fname_filt_out + ".dat", sinogram, total_detectors);
 
-    writePpmHeader(fname_filt_out + ".ppm", scanner.num_detectors, scanner.num_views);
+    writePpmHeader(fname_filt_out + ".ppm", scanner.m_num_detectors, scanner.m_num_views);
     _max = *std::max_element(sinogram.begin(), sinogram.end());
     _min = *std::min_element(sinogram.begin(), sinogram.end());
     writePpmData(fname_filt_out + ".ppm", sinogram, total_detectors, _max, _min);
@@ -357,10 +357,10 @@ if(operation.find("p") != std::string::npos)
     std::cout << "Back projection\n";
     project(scanner, &img, &sinogram, CT::ProjectionDirection::Backward, thread_count);
     
-    std::string fname_bp_out = img_out_file_prefix + "_" + std::to_string(scanner.num_views) + "_" + std::to_string(scanner.num_detectors);
+    std::string fname_bp_out = img_out_file_prefix + "_" + std::to_string(scanner.m_num_views) + "_" + std::to_string(scanner.m_num_detectors);
     writeFile(fname_bp_out + ".dat", img, total_pixels);
 
-    writePpmHeader(fname_bp_out + ".ppm", scanner.num_pixels, scanner.num_pixels);
+    writePpmHeader(fname_bp_out + ".ppm", scanner.m_num_pixels, scanner.m_num_pixels);
     // std::cout << "Back projection header done\n";
     _max = *std::max_element(img.begin(), img.end());
     _min = *std::min_element(img.begin(), img.end());
@@ -399,17 +399,17 @@ if(operation.find("p") != std::string::npos)
       std::transform(img.begin(), img.end(), img_error.begin(), img.begin(), std::minus<double>());
 
       sart_out_fname = sart_out_file_prefix;
-      sart_out_fname.append(std::to_string(scanner.num_views))
+      sart_out_fname.append(std::to_string(scanner.m_num_views))
         .append("_")
-        .append(std::to_string(scanner.num_detectors))
+        .append(std::to_string(scanner.m_num_detectors))
         .append("_")
-        .append(std::to_string((int)scanner.field_of_view))
+        .append(std::to_string((int)scanner.m_field_of_view))
         .append("_")
         .append(std::to_string(i));
 
       writeFile(sart_out_fname + ".dat", img, total_pixels);
 
-      writePpmHeader(sart_out_fname + ".ppm", scanner.num_pixels, scanner.num_pixels);
+      writePpmHeader(sart_out_fname + ".ppm", scanner.m_num_pixels, scanner.m_num_pixels);
       _max = *std::max_element(img.begin(), img.end());
       _min = *std::min_element(img.begin(), img.end());
       std::cout<< "img "  << _min << " - " << _max << "\n";

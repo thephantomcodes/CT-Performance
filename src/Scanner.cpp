@@ -16,33 +16,33 @@
 namespace CT
 {
 	Scanner::Scanner(double scanning_radius_, double detector_length_, int num_pixels_, int num_views_, int num_detectors_, double phantom_radius_, double field_of_view_, double phase_)
-    : scanning_radius(scanning_radius_)
-    , detector_length(detector_length_)
-    , num_pixels(num_pixels_)
-    , num_views(num_views_)
-    , num_detectors(num_detectors_)
-    , phantom_radius(phantom_radius_)
-    , field_of_view(field_of_view_)
-    , phase(phase_)
+    : m_scanning_radius(scanning_radius_)
+    , m_detector_length(detector_length_)
+    , m_num_pixels(num_pixels_)
+    , m_num_views(num_views_)
+    , m_num_detectors(num_detectors_)
+    , m_phantom_radius(phantom_radius_)
+    , m_field_of_view(field_of_view_)
+    , m_phase(phase_)
   {
-    det_len = detector_length/num_detectors;
-    det_begin = 0.5*detector_length;
-    col_begin = phantom_radius;
-    px_width = 2.0*phantom_radius/num_pixels;
-    rotation_delta = field_of_view/num_views;
-    col_sums.resize(num_pixels*num_pixels);
-    row_sums.resize(num_detectors*num_views);
+    m_det_len = m_detector_length/m_num_detectors;
+    m_det_begin = 0.5*m_detector_length;
+    m_col_begin = m_phantom_radius;
+    m_px_width = 2.0*m_phantom_radius/m_num_pixels;
+    m_rotation_delta = m_field_of_view/m_num_views;
+    col_sums.resize(m_num_pixels*m_num_pixels);
+    row_sums.resize(m_num_detectors*m_num_views);
   }
   
   void Scanner::PrintProjectionParameters()
   {
-    std::cout << "scanning_radius: " << scanning_radius << '\n'
-      << "detector_length: " << detector_length << '\n'
-      << "num_pixels: " << num_pixels << "x" << num_pixels << '\n'
-      << "num_views: " << num_views << '\n'
-      << "num_detectors: " << num_detectors << '\n'
-      << "phantom_radius: " << phantom_radius << '\n'
-      << "field_of_view: " << field_of_view << std::endl;
+    std::cout << "m_scanning_radius: " << m_scanning_radius << '\n'
+      << "m_detector_length: " << m_detector_length << '\n'
+      << "m_num_pixels: " << m_num_pixels << "x" << m_num_pixels << '\n'
+      << "m_num_views: " << m_num_views << '\n'
+      << "m_num_detectors: " << m_num_detectors << '\n'
+      << "m_phantom_radius: " << m_phantom_radius << '\n'
+      << "m_field_of_view: " << m_field_of_view << std::endl;
   }
 
   double Scanner::projectPoint(double src[2], double pt[2], double x)
@@ -86,25 +86,25 @@ namespace CT
     return b;
   }
 
-  void Scanner::rotatePoint(double point[2], double theta)
-  {
-  #ifdef INSTR_RDTSC
-    uint64_t st = __rdtsc();
-  #endif
+  // void Scanner::rotatePoint(double point[2], double theta)
+  // {
+  // #ifdef INSTR_RDTSC
+  //   uint64_t st = __rdtsc();
+  // #endif
 
-    theta = TO_RADIANS(theta);
-    double point_copy[2] = {point[0], point[1]};
-    double vec[2] = {cos(theta) , -sin(theta)};
-    point[0] = point_copy[0]*vec[0] + point_copy[1]*vec[1];
-    vec[0] = sin(theta);
-    vec[1] = cos(theta);
-    point[1] = point_copy[0]*vec[0] + point_copy[1]*vec[1];
+  //   theta = TO_RADIANS(theta);
+  //   double point_copy[2] = {point[0], point[1]};
+  //   double vec[2] = {cos(theta) , -sin(theta)};
+  //   point[0] = point_copy[0]*vec[0] + point_copy[1]*vec[1];
+  //   vec[0] = sin(theta);
+  //   vec[1] = cos(theta);
+  //   point[1] = point_copy[0]*vec[0] + point_copy[1]*vec[1];
 
-  #ifdef INSTR_RDTSC
-    tick_counter[RotatePoint] += __rdtsc()-st;
-    call_counter[RotatePoint]++;
-  #endif
-  }
+  // #ifdef INSTR_RDTSC
+  //   tick_counter[RotatePoint] += __rdtsc()-st;
+  //   call_counter[RotatePoint]++;
+  // #endif
+  // }
 
   void Scanner::rotatePoint(double point[2], double cos_theta, double sin_theta)
   {
@@ -136,42 +136,42 @@ namespace CT
     //for each view in thread
     for(int v=view_begin; v<view_end; v++)
     {
-      //calculate theta and determine if rotation and index swap are needed
-      double theta = std::fmod(v*rotation_delta + phase, 360.0);
-      bool swap_indices = (theta > 45.0 && theta <= 135.0) || (theta > 225.0 && theta <= 315.0);
-      theta -= ((double)swap_indices)*90.0;
+      //calculate v_theta and determine if rotation and index swap are needed
+      double v_theta = std::fmod(v*m_rotation_delta + m_phase, 360.0);
+      bool v_swap_indices = (v_theta > 45.0 && v_theta <= 135.0) || (v_theta > 225.0 && v_theta <= 315.0);
+      v_theta -= ((double)v_swap_indices)*90.0;
 
-      //rotate src location by theta
-      double src[] = {scanning_radius, 0.0};
-      // rotatePoint(src, theta);
-      theta = TO_RADIANS(theta);
-      double cos_theta = cos(theta);
-      double sin_theta = sin(theta);
-      rotatePoint(src, cos_theta, sin_theta);
+      //rotate v_src location by v_theta
+      double v_src[] = {m_scanning_radius, 0.0};
+      // rotatePoint(v_src, v_theta);
+      v_theta = TO_RADIANS(v_theta);
+      double v_cos_theta = cos(v_theta);
+      double v_sin_theta = sin(v_theta);
+      rotatePoint(v_src, v_cos_theta, v_sin_theta);
       
       //for each detector
-      for(int d=0; d<num_detectors; d++)
+      for(int d=0; d<m_num_detectors; d++)
       {
-        //calculate detector boundaries and rotate by theta
-        double det1[] = {-scanning_radius, det_begin - d*det_len};
-        double det2[] = {-scanning_radius, det_begin - (d+1)*det_len};
-        // rotatePoint(det1, theta);
-        // rotatePoint(det2, theta);
-        rotatePoint(det1, cos_theta, sin_theta);
-        rotatePoint(det2, cos_theta, sin_theta);
+        //calculate detector boundaries and rotate by v_theta
+        double d_det1[] = {-m_scanning_radius, m_det_begin - d*m_det_len};
+        double d_det2[] = {-m_scanning_radius, m_det_begin - (d+1)*m_det_len};
+        // rotatePoint(d_det1, v_theta);
+        // rotatePoint(d_det2, v_theta);
+        rotatePoint(d_det1, v_cos_theta, v_sin_theta);
+        rotatePoint(d_det2, v_cos_theta, v_sin_theta);
         
         //project detector boundaries to y-axis
-        //det_proj_interval contains y-intercepts of each point
-        double det_proj_interval[2];
-        projectInterval(src, det1, det2, 0, det_proj_interval);
+        //d_det_proj_interval contains y-intercepts of each point
+        double d_det_proj_interval[2];
+        projectInterval(v_src, d_det1, d_det2, 0, d_det_proj_interval);
 
         #ifdef INSTR_RDTSC
           st = __rdtsc();
         #endif
 
-        double cos_correction1 = src[0]/std::sqrt((det_proj_interval[0] - src[1])*(det_proj_interval[0] - src[1]) + src[0]*src[0]);
-        double cos_correction2 = src[0]/std::sqrt((det_proj_interval[1] - src[1])*(det_proj_interval[1] - src[1]) + src[0]*src[0]);
-        double cos_correction = std::abs(0.5*(cos_correction1 + cos_correction2));
+        double d_cos_correction1 = v_src[0]/std::sqrt((d_det_proj_interval[0] - v_src[1])*(d_det_proj_interval[0] - v_src[1]) + v_src[0]*v_src[0]);
+        double d_cos_correction2 = v_src[0]/std::sqrt((d_det_proj_interval[1] - v_src[1])*(d_det_proj_interval[1] - v_src[1]) + v_src[0]*v_src[0]);
+        double d_cos_correction = std::abs(0.5*(d_cos_correction1 + d_cos_correction2));
           
         #ifdef INSTR_RDTSC
           tick_counter[CosCorrect] += __rdtsc()-st;
@@ -179,54 +179,55 @@ namespace CT
         #endif
         
         //for each column
-        for(int c=0; c<num_pixels; c++)
+        for(int c=0; c<m_num_pixels; c++)
         {
-          double px_x = (c+0.5)*px_width - col_begin;
-          double pxb1 = (projectPoint(src, det1, px_x));
-          double pxb2 = (projectPoint(src, det2, px_x));
-          if(pxb1 > pxb2) std::swap(pxb1, pxb2);
+          double c_px_x = (c+0.5)*m_px_width - m_col_begin;
+          double c_px_bounds[2] = {0};
+          projectInterval(v_src, d_det1, d_det2, c_px_x, c_px_bounds);
           
-          int px_bound1 = std::max((int)std::floor((pxb1 + col_begin)/px_width), 0);
-          int px_bound2 = std::min((int)std::ceil((pxb2 + col_begin)/px_width), num_pixels);
+          int c_r_idx_0 = std::max((int)std::floor((c_px_bounds[0] + m_col_begin)/m_px_width), 0);
+          int c_r_idx_1 = std::min((int)std::ceil((c_px_bounds[1] + m_col_begin)/m_px_width), m_num_pixels);
           
-          for(int r=px_bound1; r<px_bound2; r++)
+          for(int r=c_r_idx_0; r<c_r_idx_1; r++)
           {
-            double px1[] = {px_x, (r)*px_width - col_begin};
-            double px2[] = {px_x, (r+1)*px_width - col_begin};
-            double px_proj_interval[2];
-            projectInterval(src, px1, px2, 0, px_proj_interval);
+            double r_px1[] = {c_px_x, (r)*m_px_width - m_col_begin};
+            double r_px2[] = {c_px_x, (r+1)*m_px_width - m_col_begin};
+            double r_px_proj_interval[2];
+            projectInterval(v_src, r_px1, r_px2, 0, r_px_proj_interval);
             
-            if(intervalsIntersect(px_proj_interval, det_proj_interval))
-            {
-              #ifdef INSTR_RDTSC
-                st = __rdtsc();
-              #endif
+            // if(intervalsIntersect(r_px_proj_interval, d_det_proj_interval))
+            //{
+            
+            #ifdef INSTR_RDTSC
+              st = __rdtsc();
+            #endif
 
-              double det_width = det_proj_interval[1] - det_proj_interval[0];
-              double det_px_overlap = std::min(det_proj_interval[1], px_proj_interval[1]) - std::max(det_proj_interval[0], px_proj_interval[0]); 
-              double weight = det_px_overlap / (det_width * cos_correction);
-              int sinogram_index = (v+1)*num_detectors - d-1;
-              int img_index = (r+1)*num_pixels - c-1;
-              if(swap_indices)
-                img_index = (c)*num_pixels + r;
+            double r_det_width = d_det_proj_interval[1] - d_det_proj_interval[0];
+            double r_det_px_overlap = std::min(d_det_proj_interval[1], r_px_proj_interval[1]) - std::max(d_det_proj_interval[0], r_px_proj_interval[0]); 
+            double r_weight = r_det_px_overlap / (r_det_width * d_cos_correction);
+            int r_sinogram_index = (v+1)*m_num_detectors - d-1;
+            int r_img_index = (r+1)*m_num_pixels - c-1;
+            if(v_swap_indices)
+              r_img_index = (c)*m_num_pixels + r;
+            if(projectionDirection == ProjectionDirection::Forward)
+              (*sinogram)[r_sinogram_index] += r_weight * (*img)[r_img_index];
+            else
+              (*img)[r_img_index] += r_weight * (*sinogram)[r_sinogram_index];
+
+            #ifdef INSTR_RDTSC
+              tick_counter[StoreProjValue] += __rdtsc()-st;
+              call_counter[StoreProjValue]++;
+            #endif
+
+            #ifdef GEN_SART_WEIGHTS
               if(projectionDirection == ProjectionDirection::Forward)
-                (*sinogram)[sinogram_index] += weight * (*img)[img_index];
-              else
-                (*img)[img_index] += weight * (*sinogram)[sinogram_index];
+              {
+                row_sums[r_sinogram_index] += r_weight;
+                col_sums[r_img_index] += r_weight;
+              }
+            #endif
 
-              #ifdef INSTR_RDTSC
-                tick_counter[StoreProjValue] += __rdtsc()-st;
-                call_counter[StoreProjValue]++;
-              #endif
-
-              #ifdef GEN_SART_WEIGHTS
-                if(projectionDirection == ProjectionDirection::Forward)
-                {
-                  row_sums[sinogram_index] += weight;
-                  col_sums[img_index] += weight;
-                }
-              #endif
-            }
+            //}
           }
         }
       }
@@ -264,24 +265,24 @@ namespace CT
   void Scanner::rampFilter(double *in)
   {
     fftw_complex *out;
-    out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (num_detectors/2 + 1));
+    out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (m_num_detectors/2 + 1));
     fftw_plan fwd, inv;
     
-    for(int i=0; i<num_views; i++)
+    for(int i=0; i<m_num_views; i++)
     {
-      fwd = fftw_plan_dft_r2c_1d(num_detectors, in, out, FFTW_ESTIMATE);
+      fwd = fftw_plan_dft_r2c_1d(m_num_detectors, in, out, FFTW_ESTIMATE);
       fftw_execute(fwd);
-      for(int j=0; j<(num_detectors/2 + 1); j++)
+      for(int j=0; j<(m_num_detectors/2 + 1); j++)
       {
-        double gain = (double)(j+1)/(num_detectors/2 + 1);
+        double gain = (double)(j+1)/(m_num_detectors/2 + 1);
         out[j][0] *= gain;
         out[j][1] *= gain;
       }
-      inv = fftw_plan_dft_c2r_1d(num_detectors, out, in, FFTW_ESTIMATE);
+      inv = fftw_plan_dft_c2r_1d(m_num_detectors, out, in, FFTW_ESTIMATE);
       fftw_execute(inv);
       fftw_destroy_plan(fwd);
       fftw_destroy_plan(inv);
-      in += num_detectors;
+      in += m_num_detectors;
     }
     
     fftw_free(out);
@@ -291,40 +292,40 @@ namespace CT
   void Scanner::rampFilterSL(double *in)
   {
     fftw_complex *out, *ramp;
-    out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (num_detectors/2 + 1));
-    ramp = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (num_detectors/2 + 1));
+    out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (m_num_detectors/2 + 1));
+    ramp = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (m_num_detectors/2 + 1));
     fftw_plan fwd, inv, ramp_plan;
 
     // Ramp filter in time domain
     double *filter;
-    filter = (double *) malloc(sizeof(double) * num_detectors);
+    filter = (double *) malloc(sizeof(double) * m_num_detectors);
     const double pi_squared = PI * PI;
-    double t_squared = (double)num_detectors*num_detectors;
-    for(int i=0; i<num_detectors; i++)
+    double t_squared = (double)m_num_detectors*m_num_detectors;
+    for(int i=0; i<m_num_detectors; i++)
     {
       filter[i] = -2 / (pi_squared * t_squared * (4*i*i - 1));
     }
 
     // Transform ramp to freq domain
-    ramp_plan = fftw_plan_dft_r2c_1d(num_detectors, filter, ramp, FFTW_ESTIMATE);
+    ramp_plan = fftw_plan_dft_r2c_1d(m_num_detectors, filter, ramp, FFTW_ESTIMATE);
     fftw_execute(ramp_plan);
     fftw_destroy_plan(ramp_plan);
 
     // Perform filtering
-    for(int i=0; i<num_views; i++)
+    for(int i=0; i<m_num_views; i++)
     {
-      fwd = fftw_plan_dft_r2c_1d(num_detectors, in, out, FFTW_ESTIMATE);
+      fwd = fftw_plan_dft_r2c_1d(m_num_detectors, in, out, FFTW_ESTIMATE);
       fftw_execute(fwd);
-      for(int j=0; j<(num_detectors/2 + 1); j++)
+      for(int j=0; j<(m_num_detectors/2 + 1); j++)
       {
         out[j][0] = out[j][0]*ramp[j][0] - out[j][1]*ramp[j][1];
         out[j][1] = out[j][0]*ramp[j][1] + out[j][1]*ramp[j][0];
       }
-      inv = fftw_plan_dft_c2r_1d(num_detectors, out, in, FFTW_ESTIMATE);
+      inv = fftw_plan_dft_c2r_1d(m_num_detectors, out, in, FFTW_ESTIMATE);
       fftw_execute(inv);
       fftw_destroy_plan(fwd);
       fftw_destroy_plan(inv);
-      in += num_detectors;
+      in += m_num_detectors;
     }
 
     fftw_free(out);
@@ -335,7 +336,7 @@ namespace CT
   void Scanner::rampFilterHilbert(double *in)
   {
     // Determine signal lengths
-    int n = num_detectors;
+    int n = m_num_detectors;
     // Padded signal length for Tricomi inversion of Hilbert
     int m = 3*n-2;
     // Real FFT uses symmetry to use half the data for output
@@ -363,7 +364,7 @@ namespace CT
     double *in_padded = (double *)calloc(m, sizeof(double));
 
     // Ramp filter(in) = hilbert of d(in)/dn
-    for(int i=0; i<num_views; i++)
+    for(int i=0; i<m_num_views; i++)
     {
       // Compute first difference of input signal (one row of sinogram)
       for(int j=1; j<n; j++) 
@@ -382,7 +383,7 @@ namespace CT
       }
 
       // Invert previous transform to time domain
-      inv = fftw_plan_dft_c2r_1d(num_detectors, out, in_padded, FFTW_ESTIMATE);
+      inv = fftw_plan_dft_c2r_1d(m_num_detectors, out, in_padded, FFTW_ESTIMATE);
       fftw_execute(inv);
 
       // Clean up memory and advance ptr to next sinogram row.
@@ -392,7 +393,7 @@ namespace CT
       for(int i=0; i<n; i++)
         in[i] *= 1.0/(2.0 * PI);
       std::memset(in_padded, 0x00, m*sizeof(double));
-      in += num_detectors;
+      in += m_num_detectors;
     }
 
     free(kernel);
