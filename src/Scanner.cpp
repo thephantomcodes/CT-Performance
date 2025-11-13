@@ -49,27 +49,76 @@ namespace CT
   {
     if(src[0] == pt[0]) return pt[0];
 
-    #ifdef INSTR_RDTSC
-    uint64_t st = __rdtsc();
-    #endif
+    // #ifdef INSTR_RDTSC
+    // uint64_t st = __rdtsc();
+    // #endif
 
     double m = (src[1] - pt[1]) / (src[0] - pt[0]);
     double b = pt[1] - m*pt[0];
 
-    #ifdef INSTR_RDTSC
-    tick_counter[ProjectPoint] += __rdtsc()-st;
-    call_counter[ProjectPoint]++;
-    #endif
+    // #ifdef INSTR_RDTSC
+    // tick_counter[ProjectPoint] += __rdtsc()-st;
+    // call_counter[ProjectPoint]++;
+    // #endif
 
     return m*x + b;
   }
 
-  void Scanner::projectInterval(double src[2], double pt1[2], double pt2[2], double x, double interval[2])
+  // void Scanner::projectInterval(double src[2], double pt1[2], double pt2[2], double x, double interval[2])
+  // {
+  //   #ifdef INSTR_RDTSC
+  //   uint64_t st = __rdtsc();
+  //   #endif
+
+  //   interval[0] = projectPoint(src, pt1, x);
+  //   interval[1] = projectPoint(src, pt2, x);
+  //   if(interval[0] > interval[1])
+  //     std::swap(interval[0], interval[1]);
+
+  //   #ifdef INSTR_RDTSC
+  //   tick_counter[ProjectInterval] += __rdtsc()-st;
+  //   call_counter[ProjectInterval]++;
+  //   #endif
+  // }
+
+  void Scanner::projectInterval(double src[2], double pt0[2], double pt1[2], double x, double interval[2])
   {
-    interval[0] = projectPoint(src, pt1, x);
-    interval[1] = projectPoint(src, pt2, x);
+    #ifdef INSTR_RDTSC
+    uint64_t st = __rdtsc();
+    #endif
+
+    double m;
+    double b;
+
+    // if(src[0] == pt0[0]) {
+    //   interval[0] = pt0[0];
+    //   #ifdef INSTR_RDTSC
+    //   call_counter[ProjectPoint]++;
+    //   #endif
+    // } else {
+      m = (src[1] - pt0[1]) / (src[0] - pt0[0]);
+      b = pt0[1] - m*pt0[0];
+      interval[0] = m*x + b;
+    // }
+
+    // if(src[0] == pt1[0]) {
+    //   interval[1] = pt1[0];
+    //   #ifdef INSTR_RDTSC
+    //   call_counter[ProjectPoint]++;
+    //   #endif
+    // } else {
+      m = (src[1] - pt1[1]) / (src[0] - pt1[0]);
+      b = pt1[1] - m*pt1[0];
+      interval[1] = m*x + b;
+    // }
+
     if(interval[0] > interval[1])
       std::swap(interval[0], interval[1]);
+
+    #ifdef INSTR_RDTSC
+    tick_counter[ProjectInterval] += __rdtsc()-st;
+    call_counter[ProjectInterval]++;
+    #endif
   }
 
   bool Scanner::intervalsIntersect(double interval1[2], double interval2[2])
@@ -249,7 +298,8 @@ namespace CT
     {
       sum += tick_counter[i];
       uint64_t ave_ticks = call_counter[i] ? tick_counter[i]/call_counter[i] : 0;
-      std::cout << std::setprecision(1) << std::scientific
+      std::cout 
+        //<< std::setprecision(1) << std::scientific
         << SubOpStrings[i] 
         << "\t" << (double)tick_counter[i] 
         << "\t" << (double)call_counter[i]

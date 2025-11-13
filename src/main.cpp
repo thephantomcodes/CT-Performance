@@ -60,21 +60,21 @@ void printPoint(double point[], std::string prefix="", std::string suffix="")
   std::cout << prefix << "(" << point[0] << "," << point[1] << ")" << suffix;
 }
 
-void writePpmHeader(std::string ofname, int width, int height)
+void writePpmHeader(std::string ofname, int width, int height, int depth=255)
 {
   std::fstream ofs;
   ofs.open(ofname, std::fstream::out | std::fstream::binary);
-  ofs << "P2\n" << width << ' ' << height << "\n255\n";
+  ofs << "P2\n" << width << ' ' << height << "\n" << depth << "\n";
   ofs.close();
 }
 
-void writePpmData(std::string ofname, std::vector<double> data, int width, double max_val, double min_val)
+void writePpmData(std::string ofname, std::vector<double> data, int width, double max_val, double min_val, double depth=255.0)
 {
   std::fstream ofs;
   ofs.open(ofname, std::fstream::out | std::fstream::binary | std::ios_base::app);
   for (int w = 0; w < width; ++w)
   {
-    ofs << (int)(255.0*(data[w] - min_val)/(max_val - min_val)) << '\n';
+    ofs << (int)(depth*(data[w] - min_val)/(max_val - min_val)) << '\n';
   }
   ofs.close();
 }
@@ -291,10 +291,11 @@ if(operation.find("p") != std::string::npos)
   fname_fp_out = out_file_prefix + "_" + std::to_string(scanner.m_num_views) + "_" + std::to_string(scanner.m_num_detectors);
   writeFile(fname_fp_out + ".dat", sinogram, total_detectors);
 
-  writePpmHeader(fname_fp_out + ".ppm", scanner.m_num_detectors, scanner.m_num_views);
+  int depth = (1<<16) - 1;
+  writePpmHeader(fname_fp_out + ".ppm", scanner.m_num_detectors, scanner.m_num_views, depth);
   _max = *std::max_element(sinogram.begin(), sinogram.end());
   _min = *std::min_element(sinogram.begin(), sinogram.end());
-  writePpmData(fname_fp_out + ".ppm", sinogram, total_detectors, _max, _min);
+  writePpmData(fname_fp_out + ".ppm", sinogram, total_detectors, _max, _min, depth);
 }
 
 ////////////////////////
